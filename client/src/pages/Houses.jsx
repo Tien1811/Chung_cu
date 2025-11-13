@@ -171,16 +171,7 @@ export default function HousesExplore() {
 
   return (
     <div className="re">
-      {/* HERO */}
-      <section className="re-hero u-fullbleed">
-        <div className="container re-hero__inner">
-          <div>
-            <h1>Khám phá nhà ở • nhà riêng • nhà phố</h1>
-            <p>Lọc chi tiết, gợi ý thông minh & tin xác thực.</p>
-          </div>
-          <img className="re-hero__art" src="https://picsum.photos/seed/hero-house/680/380" alt="" />
-        </div>
-      </section>
+ 
 
       {/* THANH TÌM TRÊN CÙNG (tuỳ chọn giữ/ẩn) */}
       <div className="rebar u-fullbleed" ref={barRef}>
