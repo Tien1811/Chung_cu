@@ -21,6 +21,7 @@ Route::get('/posts/{postId}/images', [PostImageController::class, 'index']);
 
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{id}', [CategoryController::class, 'show']);
+Route::get('/categories/{id}/posts', [CategoryController::class, 'getPostsByCategory']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Auth

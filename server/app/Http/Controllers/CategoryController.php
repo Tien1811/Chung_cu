@@ -104,4 +104,38 @@ class CategoryController extends Controller
         $category->delete();
         return response()->json(['status' => true, 'message' => 'Xóa danh mục thành công.']);
     }
+
+    // GET /api/categories/{id}/posts (lấy bài viết theo danh mục)
+    public function getPostsByCategory($id)
+    {
+        try {
+            $category = Category::find($id);
+            if (!$category) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Không tìm thấy danh mục.'
+                ], 404);
+            }
+
+            $posts = $category->posts()
+                ->with(['user:id,name', 'images'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'status' => true,
+                'category' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ],
+                'posts' => $posts
+            ], 200);
+        } catch (Exception $e) {
+            \Log::error('Lỗi lấy bài viết theo danh mục: ' . $e->getMessage());
+            return response()->json([
+                'status' => false,
+                'message' => 'Không thể lấy danh sách bài viết.'
+            ], 500);
+        }
+    }
 }
