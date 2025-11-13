@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PostImageController;
+use App\Http\Controllers\CategoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -18,6 +19,8 @@ Route::get('/wards', [LocationController::class, 'getWards']);
 
 Route::get('/posts/{postId}/images', [PostImageController::class, 'index']);
 
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories/{id}', [CategoryController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Auth
@@ -48,6 +51,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/wards', [LocationController::class, 'createWard']);
     Route::put('/wards/{id}', [LocationController::class, 'updateWard']);
     Route::delete('/wards/{id}', [LocationController::class, 'deleteWard']);
+
+    // Categories (admin)
+    Route::post('/categories', [CategoryController::class, 'store']);
+    Route::put('/categories/{id}', [CategoryController::class, 'update']);
+    Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 });
 
 
