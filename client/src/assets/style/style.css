@@ -97,33 +97,38 @@ body {
   width: 60px;
 }
 
-.nav {
+.nav { position: relative;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
-
+.nav__indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateX(var(--nav-indicator-left, 0)) translateY(-50%);
+  width: var(--nav-indicator-width, 0);
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4);
+  background: rgba(15, 23, 42, 0.88);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.25s ease,
+    width 0.25s ease,
+    opacity 0.2s ease;
+  z-index: 0;
+}
 .nav__link {
   text-decoration: none;
   color: #cbd5f5; /* chữ nhạt trên nền tối */
   padding: 8px 12px;
   border-radius: 999px;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 16px;position: relative;
+  z-index: 1;
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
-}
-
-.nav__link:hover {
-  background: rgba(15, 23, 42, 0.8);
-  color: #f9fafb;
-  transform: translateY(-1px);
-}
-
-.nav__link.is-active {
-  background: #0f172a;
-  color: #e5e7eb;
-  text-decoration: none;
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.6);
 }
 
 .site-header__actions {

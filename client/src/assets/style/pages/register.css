@@ -1,9 +1,8 @@
 /* =========================
-   LOGIN POPUP OVERLAY
+   REGISTER POPUP OVERLAY
    ========================= */
 
-/* phủ full màn hình, nằm trên mọi thứ */
-.login-overlay {
+.register-overlay {
   position: fixed;
   inset: 0;
   z-index: 999;
@@ -14,7 +13,7 @@
 }
 
 /* nền tối + blur, vẫn thấy mờ gradient phía sau */
-.login-overlay::before {
+.register-overlay::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -24,22 +23,22 @@
   backdrop-filter: blur(10px);
 }
 
-/* khung chứa card login */
-.login-overlay__inner {
+/* khung chứa card */
+.register-overlay__inner {
   position: relative;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   z-index: 1;
 }
 
 /* =========================
-   CARD LOGIN (glass)
+   CARD GLASS
    ========================= */
 
-.login-card {
+.register-card {
   position: relative;
-  border-radius: 22px;
-  padding: 20px 20px 22px;
+  border-radius: 24px;
+  padding: 22px 22px 24px;
   background:
     radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.25), transparent 60%),
     rgba(15, 23, 42, 0.96);
@@ -48,14 +47,12 @@
   color: #e5e7eb;
 }
 
-.login-card::before {
+.register-card::before {
   content: "";
   position: absolute;
   inset: -2px;
-  /* dày viền */
   border-radius: inherit;
   padding: 2px;
-  /* độ dày viền */
   background: conic-gradient(from 0deg,
       #ff004c,
       #ffdd00,
@@ -75,21 +72,21 @@
   z-index: -1;
 }
 
-.login-card h2 {
+.register-title {
   margin: 0 0 4px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #f9fafb;
 }
 
-.login-sub {
-  margin: 0 0 14px;
+.register-sub {
+  margin: 0 0 16px;
   font-size: 13px;
   color: #9ca3af;
 }
 
 /* nút X đóng */
-.login-close {
+.register-close {
   position: absolute;
   top: 8px;
   right: 10px;
@@ -107,29 +104,27 @@
   justify-content: center;
 }
 
-.login-close:hover {
+.register-close:hover {
   background: rgba(30, 64, 175, 0.9);
 }
 
 /* =========================
-   FORM FIELDS
+   FORM + FLOATING LABEL
    ========================= */
 
-.login-form {
+.reg-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-/* ========== FLOATING LABEL ========== */
-
-.login-field {
+.reg-field {
   position: relative;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 /* ô input */
-.login-field input {
+.reg-field input {
   width: 100%;
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.7);
@@ -139,8 +134,8 @@
   font-size: 14px;
 }
 
-/* label nằm chồng lên input */
-.login-field span {
+/* label chồng lên input */
+.reg-field span {
   position: absolute;
   left: 14px;
   top: 50%;
@@ -149,7 +144,6 @@
   font-size: 13px;
   color: #cbd5f5;
   background: rgba(15, 23, 42, 0.96);
-  /* trùng màu card để tạo viền đẹp */
   pointer-events: none;
   transition:
     top 0.18s ease,
@@ -158,71 +152,33 @@
     color 0.18s ease;
 }
 
-/* khi focus hoặc có value (không còn placeholder) → label nhảy lên trên */
-.login-field input:focus+span,
-.login-field input:not(:placeholder-shown)+span {
-  top: -10px;
+/* khi focus hoặc có value → label nhảy lên trên, cắt border 1 đoạn nhỏ */
+.reg-field input:focus + span,
+.reg-field input:not(:placeholder-shown) + span {
+  top: -7px;
   transform: translateY(0);
-  font-size: 13px;
+  font-size: 12px;
   color: #38bdf8;
-  background: rgba(15, 23, 42, 0.96);
   border-radius: 6px;
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 2px rgba(56, 191, 248, 0.571);
+  /* "cắt" border bằng shadow trùng màu nền + viền xanh */
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.96),
+    0 0 0 2px rgba(56, 189, 248, 0.75);
 }
 
 /* border + shadow khi focus */
-.login-field input:focus {
+.reg-field input:focus {
   outline: none;
   border-color: #38bdf8;
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
 }
 
-.login-field input:focus {
-  outline: none;
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
-}
+/* =========================
+   ERROR / SUCCESS
+   ========================= */
 
-/* nhớ mật khẩu + quên mật khẩu */
-.login-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 15px;
-  margin-top: 2px;
-}
-
-.login-remember {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #9ca3af;
-}
-
-.login-remember input {
-  width: 14px;
-  height: 14px;
-}
-
-/* link */
-.login-link {
-  background: none;
-  border: 0;
-  padding: 0;
-  font: inherit;
-  color: #38bdf8;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.login-link:hover {
-  text-decoration: underline;
-}
-
-/* lỗi */
-.login-error {
-  margin: 6px 0 0;
+.reg-error {
+  margin: 2px 0 0;
   padding: 8px 10px;
   border-radius: 10px;
   background: rgba(127, 29, 29, 0.95);
@@ -231,9 +187,22 @@
   font-size: 13px;
 }
 
-/* nút submit */
-.login-submit {
-  margin-top: 6px;
+.reg-success {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(22, 163, 74, 0.95);
+  border: 1px solid #bbf7d0;
+  color: #ecfdf5;
+  font-size: 13px;
+}
+
+/* =========================
+   BUTTON + LINK
+   ========================= */
+
+.reg-submit {
+  margin-top: 8px;
   width: 100%;
   border-radius: 999px;
   padding: 10px 14px;
@@ -247,31 +216,45 @@
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
-.login-submit:hover:not(:disabled) {
+.reg-submit:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
   box-shadow: 0 20px 50px rgba(8, 47, 73, 1);
 }
 
-.login-submit:disabled {
+.reg-submit:disabled {
   opacity: 0.7;
   cursor: default;
 }
 
-/* dòng dưới cùng */
-.login-bottom {
-  margin-top: 10px;
+.reg-bottom {
+  margin-top: 12px;
   font-size: 13px;
   color: #9ca3af;
+  text-align: center;
+}
+
+.reg-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #38bdf8;
+  cursor: pointer;
+}
+
+.reg-link:hover {
+  text-decoration: underline;
 }
 
 /* responsive nhỏ */
 @media (max-width: 480px) {
-  .login-overlay__inner {
+  .register-overlay__inner {
     max-width: 100%;
   }
 
-  .login-card {
-    padding: 16px 14px 18px;
+  .register-card {
+    padding: 18px 14px 20px;
+    border-radius: 20px;
   }
 }

@@ -1,140 +1,148 @@
-// src/pages/Login.jsx
-import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+// src/components/Login.jsx
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import '../assets/style/pages/login.css'
 
-export default function Login() {
-  const nav = useNavigate()
-  const location = useLocation()
-
-  const [account, setAccount] = useState('')      // email / sđt / username
+export default function Login({ onClose }) {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(false)
-  const [showPass, setShowPass] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const from = location.state?.from || '/'
+  // Khóa scroll body khi mở 
+  useEffect(() => {
+    const old = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = old
+    }
+  }, [])
 
-  const handleSubmit = e => {
+  const handleOverlayClick = (e) => {
+    // click vùng tối bên ngoài => đóng
+    if (e.target.classList.contains('login-overlay')) {
+      onClose()
+    }
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
-    // validate đơn giản
-    if (!account.trim() || !password.trim()) {
-      setError('Vui lòng nhập đầy đủ tài khoản và mật khẩu.')
+    if (!email.trim() || !password.trim()) {
+      setError('Vui lòng nhập đầy đủ email và mật khẩu.')
       return
     }
 
-    // TODO: gọi API đăng nhập ở đây (Laravel, Node,...)
-    // Ví dụ:
-    // const res = await axios.post('/api/login', { account, password })
-    // nếu ok -> lưu token, chuyển trang:
-    // nav(from, { replace: true })
+    try {
+      setLoading(true)
 
-    console.log('LOGIN DATA:', { account, password, remember })
-    // tạm thời: fake login thành công, điều hướng về trang chủ
-    nav(from, { replace: true })
+      // TODO: thay bằng API login thật
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const text = await res.text()
+      let data = null
+      try {
+        data = JSON.parse(text)
+      } catch {
+        data = null
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Đăng nhập thất bại, vui lòng kiểm tra lại.')
+      }
+
+      console.log('Login success:', data)
+      // TODO: lưu token / user nếu cần
+
+      onClose() // đăng nhập xong đóng popup
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Có lỗi xảy ra, vui lòng thử lại.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="auth">
-      <div className="container auth__wrap">
-        {/* Bên trái: text + mô tả */}
-        <div className="auth__left">
-          <h1 className="auth-title">Đăng nhập</h1>
-          <p className="auth-sub">
-            Quản lý tin đăng, lưu phòng yêu thích và đặt lịch xem phòng dễ dàng hơn.
+    <div className="login-overlay" onClick={handleOverlayClick}>
+      <div className="login-overlay__inner">
+        <section className="login-card">
+          {/* nút X */}
+          <button
+            type="button"
+            className="login-close"
+            onClick={onClose}
+          >
+            x
+          </button>
+
+          <h2>Đăng nhập</h2>
+          <p className="login-sub">
+            Truy cập nhanh vào phòng đã lưu, lịch sử xem và đánh giá của bạn.
           </p>
 
-          <ul className="auth-benefits">
-            <li>✔ Lưu phòng trọ/căn hộ yêu thích</li>
-            <li>✔ Quản lý tin đăng cho thuê của bạn</li>
-            <li>✔ Nhận gợi ý phù hợp với khu vực & ngân sách</li>
-          </ul>
-        </div>
+          <form className="login-form" onSubmit={handleSubmit}>
+            <label className="login-field">
+              <input
+                type="email"
+                placeholder=" "
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <span>Email</span>
+            </label>
 
-        {/* Bên phải: form */}
-        <div className="auth-card">
-          <h2 className="auth-card__title">Chào mừng bạn trở lại 👋</h2>
-          <p className="auth-card__subtitle">
-            Đăng nhập để tiếp tục trải nghiệm Apartments & Condominiums.
-          </p>
+            <label className="login-field">
+              <input
+                type="password"
+                placeholder=" "
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <span>Mật khẩu</span>
+            </label>
 
-          {error && <div className="auth-alert">{error}</div>}
-
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-field">
-              <label className="auth-label">Email / Số điện thoại</label>
-              <div className="auth-input">
-                <span className="auth-input__icon">📧</span>
-                <input
-                  type="text"
-                  placeholder="vd: tenban@gmail.com"
-                  value={account}
-                  onChange={e => setAccount(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label">Mật khẩu</label>
-              <div className="auth-input">
-                <span className="auth-input__icon">🔒</span>
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  placeholder="Nhập mật khẩu"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="auth-input__toggle"
-                  onClick={() => setShowPass(s => !s)}
-                >
-                  {showPass ? 'Ẩn' : 'Hiện'}
-                </button>
-              </div>
-            </div>
-
-            <div className="auth-row auth-row--between">
-              <label className="auth-check">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={e => setRemember(e.target.checked)}
-                />
+            <div className="login-row">
+              <label className="login-remember">
+                <input type="checkbox" />
                 <span>Ghi nhớ đăng nhập</span>
               </label>
-
-              <Link to="/forgot-password" className="auth-link">
+              <button
+                type="button"
+                className="login-link"
+                onClick={() => alert('Trang quên mật khẩu chưa làm 😆')}
+              >
                 Quên mật khẩu?
-              </Link>
+              </button>
             </div>
 
-            <button type="submit" className="auth-btn auth-btn--primary">
-              Đăng nhập
-            </button>
-
-            <div className="auth-divider">
-              <span>hoặc</span>
-            </div>
+            {error && <p className="login-error">{error}</p>}
 
             <button
-              type="button"
-              className="auth-btn auth-btn--ghost"
-              onClick={() => alert('Sau này gắn Google/Facebook login vào đây')}
+              type="submit"
+              className="login-submit"
+              disabled={loading}
             >
-              Đăng nhập với Google
+              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
-
-            <p className="auth-bottom-text">
-              Chưa có tài khoản?{' '}
-              <Link to="/register" className="auth-link u-underline">
-                Đăng ký ngay
-              </Link>
-            </p>
           </form>
-        </div>
+
+          <p className="login-bottom">
+            Chưa có tài khoản?{' '}
+            <Link
+              to="/register"
+              className="login-link"
+              onClick={onClose}
+            >
+              Đăng ký ngay
+            </Link>
+          </p>
+        </section>
       </div>
     </div>
   )
