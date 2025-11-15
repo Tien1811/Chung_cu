@@ -10,7 +10,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('post_id')->constrained('posts')->cascadeOnDelete();
-            $table->timestamp('created_at')->nullable();
+            $table->timestamps(); 
             $table->unique(['user_id', 'post_id']);
         });
     }

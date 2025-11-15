@@ -9,6 +9,7 @@ use App\Http\Controllers\AmenityController;
 use App\Http\Controllers\PostAmenityController;
 use App\Http\Controllers\EnvironmentFeatureController;
 use App\Http\Controllers\PostEnvironmentController;
+use App\Http\Controllers\SavedPostController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -84,6 +85,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts/{postId}/environment', [PostEnvironmentController::class, 'index']);
     Route::post('/posts/{postId}/environment', [PostEnvironmentController::class, 'attach']);
     Route::delete('/posts/{postId}/environment', [PostEnvironmentController::class, 'detach']);
+
+    // Saved Posts (all)
+    Route::get('/saved-posts', [SavedPostController::class, 'index']);
+    Route::post('/saved-posts/{postId}', [SavedPostController::class, 'save']);
+    Route::delete('/saved-posts/{postId}', [SavedPostController::class, 'unsave']);
 });
 
 
