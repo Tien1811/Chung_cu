@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -36,6 +37,17 @@ class AuthController extends Controller
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Thông báo cho admin về user mới đăng ký
+        $admins = User::where('role', 'admin')->pluck('id');
+
+        foreach ($admins as $adminId) {
+            Notification::create([
+                'user_id' => $adminId,
+                'type' => 'user_registered',
+                'content' => 'Người dùng mới đăng ký: ' . $user->name . ' (' . $user->email . ')',
+            ]);
+        }
 
         return response()->json([
             'status' => true,

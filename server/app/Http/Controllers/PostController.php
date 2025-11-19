@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Post;
+use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -105,6 +107,19 @@ class PostController extends Controller
                 'published_at' => now(),
             ]);
 
+            // thông báo cho admin
+            if ($user->role === 'lessor') {
+                $admins = User::admins()->get();
+
+                foreach ($admins as $admin) {
+                    Notification::create([
+                        'user_id' => $admin->id,
+                        'type' => 'post_created',
+                        'content' => $user->name . ' vừa đăng bài mới: "' . $post->title . '"',
+                    ]);
+                }
+            }
+
             return response()->json([
                 'status' => true,
                 'message' => 'Thêm bài viết thành công.',
@@ -169,6 +184,28 @@ class PostController extends Controller
                 'max_people', 'province_id', 'district_id', 'ward_id'
             ]));
 
+            // thông báo cho admin
+            if ($user->role === 'lessor') {
+                $admins = User::admins()->get();
+
+                foreach ($admins as $admin) {
+                    Notification::create([
+                        'user_id' => $admin->id,
+                        'type' => 'post_updated',
+                        'content' => $user->name . ' vừa cập nhật bài viết: "' . $post->title . '"',
+                    ]);
+                }
+            }
+
+            // thông báo cho lessor
+            if ($user->role === 'admin' && $post->user_id != $user->id) {
+                Notification::create([
+                    'user_id' => $post->user_id,
+                    'type' => 'post_updated',
+                    'content' => 'Admin đã chỉnh sửa bài viết: "' . $post->title . '"',
+                ]);
+            }
+
             return response()->json([
                 'status' => true,
                 'message' => 'Cập nhật bài viết thành công.',
@@ -210,6 +247,15 @@ class PostController extends Controller
                     'status' => false,
                     'message' => 'Bạn không có quyền xóa bài viết này.'
                 ], 403);
+            }
+
+            // thông báo cho lessor
+            if ($user->role === 'admin') {
+                Notification::create([
+                    'user_id' => $post->user_id,
+                    'type' => 'post_deleted',
+                    'content' => 'Bài viết "' . $post->title . '" đã bị xóa bởi admin.',
+                ]);
             }
 
             $post->delete();

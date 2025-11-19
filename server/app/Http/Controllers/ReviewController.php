@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Review;
 use App\Models\Post;
+use App\Models\Notification;
 
 class ReviewController extends Controller
 {
@@ -86,6 +87,13 @@ class ReviewController extends Controller
             'content'  => $request->content
         ]);
 
+        // Thông báo cho chủ bài đăng lessor
+        Notification::create([
+            'user_id' => $post->user_id,
+            'type' => 'review_created',
+            'content' => $user->name . ' đã đánh giá bài viết: "' . $post->title . '"',
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Thêm đánh giá thành công.',
@@ -115,6 +123,22 @@ class ReviewController extends Controller
 
         $review->update($request->only('rating', 'content'));
 
+        $post = Post::find($review->post_id);
+
+        // Thông báo cho chủ bài lessor
+        Notification::create([
+            'user_id' => $post->user_id,
+            'type' => 'review_updated',
+            'content' => $user->name . ' đã chỉnh sửa đánh giá trong bài viết: "' . $post->title . '"',
+        ]);
+
+        // Thông báo cho chính user
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'review_updated',
+            'content' => 'Bạn đã chỉnh sửa đánh giá trong bài viết: "' . $post->title . '"',
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Cập nhật đánh giá thành công.',
@@ -136,6 +160,22 @@ class ReviewController extends Controller
         if ($user->role !== 'admin' && $review->user_id !== $user->id) {
             return response()->json(['status' => false, 'message' => 'Không có quyền xóa đánh giá này.'], 403);
         }
+
+        $post = Post::find($review->post_id);
+
+        // Thông báo cho chủ bài đăng lessor
+        Notification::create([
+            'user_id' => $post->user_id,
+            'type' => 'review_deleted',
+            'content' => $user->name . ' đã xóa một đánh giá trong bài viết: "' . $post->title . '"',
+        ]);
+
+        // Thông báo cho user tạo review
+        Notification::create([
+            'user_id' => $review->user_id,
+            'type' => 'review_deleted',
+            'content' => 'Đánh giá của bạn trong bài viết "' . $post->title . '" đã bị xóa.',
+        ]);
 
         $review->delete();
 

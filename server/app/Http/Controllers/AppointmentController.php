@@ -36,11 +36,11 @@ class AppointmentController extends Controller
             'status' => 'pending'
         ]);
 
-        // Thông báo cho chủ nhà
+        // Thông báo cho lessor
         Notification::create([
             'user_id' => $ownerId,
             'type' => 'appointment_new',
-            'content' => "Bạn có yêu cầu đặt lịch hẹn mới từ người thuê cho bài đăng #{$post->id}",
+            'content' => auth()->user()->name . " vừa gửi yêu cầu đặt lịch hẹn cho bài đăng: {$post->title}",
         ]);
 
         return response()->json([
@@ -65,10 +65,11 @@ class AppointmentController extends Controller
 
         $appointment->update(['status' => 'accepted']);
 
+        // thông báo cho người thuê
         Notification::create([
             'user_id' => $appointment->renter_id,
             'type' => 'appointment_accepted',
-            'content' => 'Chủ nhà đã chấp nhận lịch hẹn của bạn.'
+            'content' => "{$appointment->owner->name} đã chấp nhận lịch hẹn cho bài đăng: {$appointment->post->title}"
         ]);
 
         return response()->json(['message' => 'Đã duyệt lịch hẹn']);
@@ -90,10 +91,11 @@ class AppointmentController extends Controller
 
         $appointment->update(['status' => 'declined']);
 
+        // thông báo cho người thuê
         Notification::create([
             'user_id' => $appointment->renter_id,
             'type' => 'appointment_declined',
-            'content' => 'Chủ nhà đã từ chối lịch hẹn của bạn.'
+            'content' => "{$appointment->owner->name} đã từ chối lịch hẹn cho bài đăng: {$appointment->post->title}"
         ]);
 
         return response()->json(['message' => 'Đã từ chối lịch hẹn']);
@@ -115,10 +117,11 @@ class AppointmentController extends Controller
 
         $appointment->update(['status' => 'cancelled']);
 
+        // thông báo cho lessor
         Notification::create([
             'user_id' => $appointment->owner_id,
             'type' => 'appointment_cancelled',
-            'content' => 'Người thuê đã hủy lịch hẹn.'
+            'content' => "{$appointment->renter->name} đã hủy lịch hẹn cho bài đăng: {$appointment->post->title}"
         ]);
 
         return response()->json(['message' => 'Đã hủy lịch hẹn']);

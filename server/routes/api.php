@@ -12,6 +12,7 @@ use App\Http\Controllers\PostEnvironmentController;
 use App\Http\Controllers\SavedPostController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\NotificationsController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -108,6 +109,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/appointments/my', [AppointmentController::class, 'myAppointments']);
     Route::get('/appointments/owner', [AppointmentController::class, 'ownerAppointments']);
     Route::get('/appointments/{id}', [AppointmentController::class, 'show']);
+
+    // Notifications (all)
+    Route::get('/notifications', [NotificationsController::class, 'index']);
+    Route::post('/notifications/read/{id}', [NotificationsController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationsController::class, 'markAll']);
+    Route::get('/notifications/unread-count', [NotificationsController::class, 'unreadCount']);
 });
 
 

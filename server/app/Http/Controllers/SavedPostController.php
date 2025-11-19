@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Notification;
 use App\Models\Post;
 
 class SavedPostController extends Controller
@@ -44,6 +45,13 @@ class SavedPostController extends Controller
 
         $user->savedPosts()->attach($post_id);
 
+        // THÔNG BÁO: user đã lưu bài
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'saved_post',
+            'content' => 'Bạn đã lưu bài đăng: "' . $post->title . '"'
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Lưu bài thành công.'
@@ -55,6 +63,9 @@ class SavedPostController extends Controller
     {
         $user = Auth::user();
 
+        // Lấy post để dùng title
+        $post = Post::find($post_id);
+
         if (!$user->savedPosts()->where('post_id', $post_id)->exists()) {
             return response()->json([
                 'status' => false,
@@ -63,6 +74,13 @@ class SavedPostController extends Controller
         }
 
         $user->savedPosts()->detach($post_id);
+
+        // THÔNG BÁO: user đã bỏ lưu
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'unsaved_post',
+            'content' => 'Bạn đã bỏ lưu bài đăng: "' . $post->title . '"'
+        ]);
 
         return response()->json([
             'status' => true,
