@@ -1,0 +1,5 @@
+#server
+server/vendor
+server/*.log
+server/.env
+server/.env.*

@@ -14,6 +14,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ForgotPasswordController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -36,6 +37,9 @@ Route::get('/amenities', [AmenityController::class, 'index']);
 Route::get('/environment-features', [EnvironmentFeatureController::class, 'index']);
 
 Route::get('/posts/{postId}/reviews', [ReviewController::class, 'index']);
+
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetToken']);
+Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Auth (all)
