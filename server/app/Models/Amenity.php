@@ -13,7 +13,7 @@ class Amenity extends Model
     public $timestamps = false;
 
     public function posts() {
-        return $this->belongsToMany(Post::class, 'amenity_post');
+        return $this->belongsToMany(Post::class, 'amenity_post', 'amenity_id', 'post_id');
     }
 }
 

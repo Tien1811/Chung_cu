@@ -16,6 +16,7 @@ return new class extends Migration {
             $table->string('status')->default('pending'); 
             // pending | accepted | declined | completed
             $table->text('note')->nullable();
+            $table->text('lessor_note')->nullable();
             $table->timestamps();
 
             $table->foreign('post_id')->references('id')->on('posts')->onDelete('cascade');

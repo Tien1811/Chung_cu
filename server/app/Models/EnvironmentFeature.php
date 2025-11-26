@@ -13,7 +13,7 @@ class EnvironmentFeature extends Model
     public $timestamps = false;
 
     public function posts() {
-        return $this->belongsToMany(Post::class, 'environment_post');
+        return $this->belongsToMany(Post::class, 'environment_post', 'environment_id', 'post_id');
     }
 }
 

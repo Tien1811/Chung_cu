@@ -12,7 +12,8 @@ class Appointment extends Model
         'owner_id',
         'appointment_time',
         'status',
-        'note'
+        'note', 
+        'lessor_note'
     ];
 
     // User đặt lịch

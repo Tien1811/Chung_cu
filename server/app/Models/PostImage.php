@@ -8,9 +8,14 @@ class PostImage extends Model
 {
     protected $table = 'post_images';
     
-    protected $fillable = ['post_id', 'url', 'sort_order'];
+    protected $fillable = ['post_id', 'sort_order'];
 
     public function post() {
         return $this->belongsTo(Post::class);
+    }
+
+    public function file()
+    {
+        return $this->morphOne(CloudinaryFile::class, 'model')->where('type', 'post_image');
     }
 }

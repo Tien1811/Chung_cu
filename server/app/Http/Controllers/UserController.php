@@ -2,30 +2,43 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use App\Models\CloudinaryFile;
+use App\Services\CloudinaryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
-use App\Models\User;
 
 class UserController extends Controller
 {
-    // GET /api/user/profile (xem thông tin cá nhân)
+    protected $cloudinary;
+
+    public function __construct(CloudinaryService $cloudinary)
+    {
+        $this->cloudinary = $cloudinary;
+    }
+
+    // GET /api/user/profile
     public function profile()
     {
         $user = Auth::user();
 
-        // Thêm avatar_url trực tiếp
-        $data = $user->toArray();
-        $data['avatar_url'] = $user->avatar ? asset('storage/' . $user->avatar) : null;
+        $avatar = $user->avatarFile ? $user->avatarFile->url : null;
 
         return response()->json([
             'status' => true,
-            'data' => $data
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone_number' => $user->phone_number,
+                'role' => $user->role,
+                'avatar_url' => $avatar
+            ]
         ]);
     }
 
-    // PUT /api/user/profile (cập nhật thông tin cá nhân)
+    // PUT /api/user/profile
     public function updateProfile(Request $request)
     {
         $user = Auth::user();
@@ -33,7 +46,7 @@ class UserController extends Controller
         $request->validate([
             'name'         => 'nullable|string|max:255',
             'email'        => 'nullable|email|unique:users,email,' . $user->id,
-            'phone_number' => 'nullable|string|regex:/^0[0-9]{9}$/|unique:users,phone_number,' . $user->id,
+            'phone_number' => 'nullable|regex:/^0[0-9]{9}$/|unique:users,phone_number,' . $user->id,
         ]);
 
         if ($request->filled('name')) $user->name = $request->name;
@@ -42,53 +55,54 @@ class UserController extends Controller
 
         $user->save();
 
-        // Trả về avatar_url
-        $data = $user->toArray();
-        $data['avatar_url'] = $user->avatar ? asset('storage/' . $user->avatar) : null;
-
         return response()->json([
             'status' => true,
-            'message' => 'Cập nhật thông tin thành công.',
-            'data' => $data
+            'message' => 'Cập nhật thông tin thành công.'
         ]);
     }
 
-    // POST /api/user/profile/avatar (cập nhật avatar)
+    // POST /api/user/profile/avatar
     public function updateAvatar(Request $request)
     {
         $user = Auth::user();
 
         $request->validate([
-            'avatar' => 'required|image|max:2048',
+            'avatar' => 'required|image|mimes:jpg,jpeg,png|max:4096',
         ]);
 
-        $file = $request->file('avatar');
-
-        // Xóa avatar cũ nếu có
-        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-            Storage::disk('public')->delete($user->avatar);
+        // Nếu đã có avatar, xoá avatar cũ trên Cloudinary và DB
+        if ($user->avatarFile) {
+            $this->cloudinary->delete($user->avatarFile->public_id);
+            $user->avatarFile->delete();
         }
 
-        $filename = time() . '_' . $file->getClientOriginalName();
-        $path = $file->storeAs('avatars', $filename, 'public');
-        $user->avatar = $path;
-        $user->save();
+        // Upload avatar mới
+        $upload = $this->cloudinary->upload(
+            $request->file('avatar')->getRealPath(),
+            'user_avatars'
+        );
+
+        $user->cloudinaryFiles()->create([
+            'public_id' => $upload['public_id'],
+            'url'       => $upload['secure_url'],
+            'type'      => 'avatar'
+        ]);
 
         return response()->json([
             'status' => true,
             'message' => 'Cập nhật avatar thành công.',
-            'avatar_url' => asset('storage/' . $user->avatar)
+            'avatar_url' => $upload['secure_url']
         ]);
     }
 
-    // PUT /api/user/change-password (đổi mật khẩu)
+    // PUT /api/user/change-password
     public function changePassword(Request $request)
     {
         $user = Auth::user();
 
         $request->validate([
-            'current_password' => 'required|string',
-            'new_password'     => 'required|string|min:6|confirmed'
+            'current_password' => 'required',
+            'new_password' => 'required|min:6|confirmed'
         ]);
 
         if (!Hash::check($request->current_password, $user->password)) {

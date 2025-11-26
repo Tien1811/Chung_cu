@@ -16,10 +16,15 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ForgotPasswordController;
+use App\Http\Controllers\LessorApplicationController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+Route::get('/posts/search', [SearchController::class, 'search']);
+Route::get('/posts/{id}/similar', [SearchController::class, 'similarPosts']);
 
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{id}', [PostController::class, 'show']);
@@ -59,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts', [PostController::class, 'store']);
     Route::put('/posts/{id}', [PostController::class, 'update']);
     Route::delete('/posts/{id}', [PostController::class, 'destroy']);
+    Route::post('/posts/{id}/thumbnail', [PostController::class, 'uploadThumbnail']);
 
     // Post Images (admin & lessor)
     Route::post('/posts/{postId}/images', [PostImageController::class, 'store']);
@@ -134,6 +140,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/blogs', [BlogController::class, 'store']);
     Route::put('/blogs/{id}', [BlogController::class, 'update']);
     Route::delete('/blogs/{id}', [BlogController::class, 'destroy']);
+
+    // Duyệt yêu cầu trở thành người cho thuê (user & admin)
+    Route::post('/lessor/apply', [LessorApplicationController::class, 'apply']);
+    Route::get('/lessor/my', [LessorApplicationController::class, 'myRequest']);
+    Route::get('/admin/lessor/requests', [LessorApplicationController::class, 'adminIndex']);
+    Route::post('/admin/lessor/approve/{id}', [LessorApplicationController::class, 'approve']);
+    Route::post('/admin/lessor/reject/{id}', [LessorApplicationController::class, 'reject']);
+    Route::delete('/admin/lessor/delete/{id}', [LessorApplicationController::class, 'delete']);
+
 });
 
 

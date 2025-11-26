@@ -27,6 +27,18 @@ class AppointmentController extends Controller
             return response()->json(['error' => 'Không thể đặt lịch xem căn hộ của chính bạn'], 400);
         }
 
+        // Kiểm tra xem đã có lịch pending chưa
+        $existing = Appointment::where('post_id', $post->id)
+            ->where('renter_id', $renterId)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'error' => 'Bạn đã gửi yêu cầu hẹn với chủ nhà này. Vui lòng chờ phản hồi.'
+            ], 400);
+        }
+
         $appointment = Appointment::create([
             'post_id' => $post->id,
             'renter_id' => $renterId,
@@ -51,9 +63,9 @@ class AppointmentController extends Controller
 
 
     // PATCH /api/appointments/{id}/accept (Lessor đồng ý lịch)
-    public function accept($id)
+    public function accept($id, Request $request)
     {
-        $appointment = Appointment::findOrFail($id);
+        $appointment = Appointment::with(['post', 'owner'])->findOrFail($id);
 
         if ($appointment->owner_id !== auth()->id()) {
             return response()->json(['error' => 'Không có quyền duyệt'], 403);
@@ -63,23 +75,37 @@ class AppointmentController extends Controller
             return response()->json(['error' => 'Không thể cập nhật. Lịch đã được xử lý.'], 400);
         }
 
-        $appointment->update(['status' => 'accepted']);
+        // YÊU CẦU PHẢI CÓ lessor_note
+        if (!$request->lessor_note || trim($request->lessor_note) === '') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Vui lòng nhập ghi chú khi chấp nhận lịch hẹn.'
+            ], 400);
+        }
 
-        // thông báo cho người thuê
+        // cập nhật
+        $appointment->update([
+            'status' => 'accepted',
+            'lessor_note' => $request->lessor_note
+        ]);
+
         Notification::create([
             'user_id' => $appointment->renter_id,
             'type' => 'appointment_accepted',
-            'content' => "{$appointment->owner->name} đã chấp nhận lịch hẹn cho bài đăng: {$appointment->post->title}"
+            'content' => "{$appointment->owner->name} đã chấp nhận lịch hẹn cho bài đăng: {$appointment->post->title}. Ghi chú: {$request->lessor_note}"
         ]);
 
-        return response()->json(['message' => 'Đã duyệt lịch hẹn']);
+        return response()->json([
+            'message' => 'Đã duyệt lịch hẹn',
+            'appointment' => $appointment
+        ]);
     }
 
 
     // PATCH /api/appointments/{id}/decline (lessor từ chối lịch)
-    public function decline($id)
+    public function decline($id, Request $request)
     {
-        $appointment = Appointment::findOrFail($id);
+        $appointment = Appointment::with(['post', 'owner'])->findOrFail($id);
 
         if ($appointment->owner_id !== auth()->id()) {
             return response()->json(['error' => 'Không có quyền từ chối'], 403);
@@ -89,16 +115,29 @@ class AppointmentController extends Controller
             return response()->json(['error' => 'Không thể cập nhật. Lịch đã được xử lý.'], 400);
         }
 
-        $appointment->update(['status' => 'declined']);
+        // YÊU CẦU PHẢI CÓ lessor_note
+        if (!$request->lessor_note || trim($request->lessor_note) === '') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Bạn phải nhập lý do từ chối lịch hẹn.'
+            ], 400);
+        }
 
-        // thông báo cho người thuê
+        $appointment->update([
+            'status' => 'declined',
+            'lessor_note' => $request->lessor_note
+        ]);
+
         Notification::create([
             'user_id' => $appointment->renter_id,
             'type' => 'appointment_declined',
-            'content' => "{$appointment->owner->name} đã từ chối lịch hẹn cho bài đăng: {$appointment->post->title}"
+            'content' => "{$appointment->owner->name} đã từ chối lịch hẹn cho bài đăng: {$appointment->post->title}. Lý do: {$request->lessor_note}"
         ]);
 
-        return response()->json(['message' => 'Đã từ chối lịch hẹn']);
+        return response()->json([
+            'message' => 'Đã từ chối lịch hẹn',
+            'appointment' => $appointment
+        ]);
     }
 
 

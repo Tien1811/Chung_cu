@@ -4,23 +4,32 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use App\Models\Post;
 use App\Models\PostImage;
+use App\Models\CloudinaryFile;
+use App\Services\CloudinaryService;
 use Exception;
 
 class PostImageController extends Controller
 {
+    protected $cloudinary;
+
+    public function __construct(CloudinaryService $cloudinary)
+    {
+        $this->cloudinary = $cloudinary;
+    }
+
     // GET /api/posts/{postId}/images
     public function index($postId)
     {
         try {
-            $images = PostImage::where('post_id', $postId)
+            $images = PostImage::with('file')
+                ->where('post_id', $postId)
                 ->orderBy('sort_order')
                 ->get()
                 ->map(function ($img) {
-                    $img->full_url = asset('storage/' . $img->url);
+                    $img->full_url = $img->file ? $img->file->url : null;
                     return $img;
                 });
 
@@ -31,7 +40,7 @@ class PostImageController extends Controller
         }
     }
 
-    // POST /api/posts/{postId}/images (chỉ lessor hoặc admin)
+    // POST /api/posts/{postId}/images
     public function store(Request $request, $postId)
     {
         try {
@@ -42,8 +51,7 @@ class PostImageController extends Controller
                 return response()->json(['status' => false, 'message' => 'Không tìm thấy bài viết.'], 404);
             }
 
-            // *Chỉ admin hoặc lessor là người tạo bài mới được thêm ảnh
-            if (!in_array($user->role, ['admin', 'lessor']) || $post->user_id !== $user->id && $user->role !== 'admin') {
+            if (!in_array($user->role, ['admin', 'lessor']) || ($post->user_id !== $user->id && $user->role !== 'admin')) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Chỉ admin hoặc chủ bài viết mới được thêm ảnh.'
@@ -51,32 +59,49 @@ class PostImageController extends Controller
             }
 
             $request->validate([
-                'image' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+                'image' => 'required|image|mimes:jpeg,png,jpg|max:4096',
                 'sort_order' => 'nullable|integer|min:0'
             ]);
 
-            $path = $request->file('image')->store('posts', 'public');
+            // Upload ảnh lên Cloudinary
+            $upload = $this->cloudinary->upload(
+                $request->file('image')->getRealPath(),
+                'post_images'
+            );
 
+            // Tạo PostImage
             $image = PostImage::create([
                 'post_id' => $postId,
-                'url' => $path,
                 'sort_order' => $request->sort_order ?? 0
             ]);
 
-            $image->full_url = asset('storage/' . $image->url);
+            // Lưu vào cloudinary_files
+            CloudinaryFile::create([
+                'model_type' => PostImage::class,
+                'model_id'   => $image->id,
+                'public_id'  => $upload['public_id'],
+                'url'        => $upload['secure_url'],
+                'type'       => 'post_image',
+            ]);
 
             return response()->json([
                 'status' => true,
                 'message' => 'Thêm ảnh thành công.',
-                'data' => $image
+                'data' => [
+                    'id' => $image->id,
+                    'post_id' => $image->post_id,
+                    'sort_order' => $image->sort_order,
+                    'url' => $upload['secure_url']
+                ]
             ], 201);
+
         } catch (Exception $e) {
-            Log::error('Lỗi thêm ảnh: ' . $e->getMessage());
+            Log::error("Lỗi thêm ảnh: " . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'Không thể thêm ảnh.'], 500);
         }
     }
 
-    // PUT /api/posts/images/{id} (chỉ lessor hoặc admin)
+    // PUT /api/posts/images/{id}
     public function update(Request $request, $id)
     {
         try {
@@ -88,8 +113,7 @@ class PostImageController extends Controller
             $user = Auth::user();
             $post = Post::find($image->post_id);
 
-            // *Chỉ admin hoặc lessor là người tạo bài đó được sửa ảnh
-            if (!in_array($user->role, ['admin', 'lessor']) || $post->user_id !== $user->id && $user->role !== 'admin') {
+            if (!in_array($user->role, ['admin', 'lessor']) || ($post->user_id !== $user->id && $user->role !== 'admin')) {
                 return response()->json(['status' => false, 'message' => 'Bạn không có quyền sửa ảnh này.'], 403);
             }
 
@@ -106,17 +130,18 @@ class PostImageController extends Controller
                 'message' => 'Cập nhật ảnh thành công.',
                 'data' => $image
             ]);
+
         } catch (Exception $e) {
             Log::error('Lỗi cập nhật ảnh: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'Không thể cập nhật ảnh.'], 500);
         }
     }
 
-    // DELETE /api/posts/images/{id} (chỉ lessor hoặc admin)
+    // DELETE /api/posts/images/{id}
     public function destroy($id)
     {
         try {
-            $image = PostImage::find($id);
+            $image = PostImage::with('file')->find($id);
             if (!$image) {
                 return response()->json(['status' => false, 'message' => 'Không tìm thấy ảnh.'], 404);
             }
@@ -124,15 +149,23 @@ class PostImageController extends Controller
             $user = Auth::user();
             $post = Post::find($image->post_id);
 
-            // *Chỉ admin hoặc lessor là người tạo bài đó được xóa ảnh
-            if (!in_array($user->role, ['admin', 'lessor']) || $post->user_id !== $user->id && $user->role !== 'admin') {
+            if (!in_array($user->role, ['admin', 'lessor']) || ($post->user_id !== $user->id && $user->role !== 'admin')) {
                 return response()->json(['status' => false, 'message' => 'Bạn không có quyền xóa ảnh này.'], 403);
             }
 
-            Storage::disk('public')->delete($image->url);
+            // Xóa trên Cloudinary + DB
+            if ($image->file) {
+                $this->cloudinary->delete($image->file->public_id);
+                $image->file->delete();
+            }
+
             $image->delete();
 
-            return response()->json(['status' => true, 'message' => 'Xóa ảnh thành công.']);
+            return response()->json([
+                'status' => true,
+                'message' => 'Xóa ảnh thành công.'
+            ]);
+
         } catch (Exception $e) {
             Log::error('Lỗi xóa ảnh: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'Không thể xóa ảnh.'], 500);

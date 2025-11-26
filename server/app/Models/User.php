@@ -13,7 +13,7 @@ class User extends Authenticatable
     protected $table = 'users';
     
     protected $fillable = [
-        'name', 'email', 'password', 'phone_number', 'avatar', 'role',
+        'name', 'email', 'password', 'phone_number', 'role',
     ];
 
     protected $hidden = [
@@ -64,6 +64,16 @@ class User extends Authenticatable
     public function scopeAdmins($query)
     {
     return $query->where('role', 'admin');
+    }
+
+    public function cloudinaryFiles()
+    {
+        return $this->morphMany(CloudinaryFile::class, 'model');
+    }
+
+    public function avatarFile()
+    {
+        return $this->morphOne(CloudinaryFile::class, 'model')->where('type', 'avatar');
     }
 
 }

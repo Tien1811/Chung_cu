@@ -35,7 +35,7 @@ class Post extends Model
     }
 
     public function images() {
-        return $this->hasMany(PostImage::class);
+        return $this->hasMany(PostImage::class)->with('file');
     }
 
     public function amenities() {
@@ -56,6 +56,12 @@ class Post extends Model
 
     public function rentalContracts() {
         return $this->hasMany(RentalContract::class);
+    }
+
+    public function thumbnail()
+    {
+        return $this->morphOne(CloudinaryFile::class, 'model')
+                    ->where('type', 'thumbnail');
     }
 }
 

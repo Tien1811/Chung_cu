@@ -15,7 +15,6 @@ return new class extends Migration {
             $table->rememberToken();
             $table->enum('role', ['user', 'lessor', 'admin'])->default('user');
             $table->string('phone_number', 15)->nullable();
-            $table->string('avatar', 255)->nullable();
             $table->timestamps();
         });
     }
