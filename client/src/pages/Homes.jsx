@@ -1,6 +1,31 @@
+// src/pages/Homes.jsx
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../assets/style/style.css'
+
+// meta cho section "Khám theo loại chỗ ở"
+const CATEGORY_META = {
+  'phong-tro': {
+    href: '/phong-tro',
+    img: 'https://via.placeholder.com/400x400?text=Ph%C3%B2ng+tr%E1%BB%8D',
+    desc: 'Giá mềm, phù hợp sinh viên & người đi làm.',
+  },
+  'can-ho': {
+    href: '/can-ho',
+    img: 'https://via.placeholder.com/400x400?text=C%C4%83n+h%E1%BB%99',
+    desc: 'Không gian riêng, tiện nghi, an ninh tốt.',
+  },
+  'nha-nguyen-can': {
+    href: '/nha-nguyen-can',
+    img: 'https://via.placeholder.com/400x400?text=Nh%C3%A0+nguy%C3%AAn+c%C4%83n',
+    desc: 'Thoải mái cho gia đình hoặc nhóm bạn.',
+  },
+  'ky-tuc-xa': {
+    href: '/ky-tuc-xa',
+    img: 'https://via.placeholder.com/400x400?text=K%C3%BD+t%C3%BAc+x%C3%A1',
+    desc: 'Tiết kiệm, nhiều bạn bè, không lo cô đơn.',
+  },
+}
 
 export default function Homes() {
   const nav = useNavigate()
@@ -11,37 +36,17 @@ export default function Homes() {
   const [price, setPrice] = useState('')
   const [area, setArea] = useState('')
 
-  // ===== Dữ liệu demo =====
-  const [featured, setFeatured] = useState([])
-  const [blogs, setBlogs] = useState([])
-  const [stats] = useState({
-    posts: 12500,
-    landlords: 3800,
-    views: 965000
+  // ===== Dữ liệu từ API =====
+  const [featured, setFeatured] = useState([]) // tin nổi bật
+  const [blogs, setBlogs] = useState([]) // để trống, sau này có API blog thì gắn vào
+  const [stats, setStats] = useState({
+    posts: 0,
+    landlords: 0,
+    views: 0,
   })
+  const [provincesList, setProvincesList] = useState([])
+  const [categories, setCategories] = useState([])
 
-  // Phòng trọ quanh các trường (demo)
-  const uniList_room = [
-    { id: 1, name: 'Trường Đại học Kinh Tế Huế', logo: 'https://picsum.photos/seed/uni1/90/90' },
-    { id: 2, name: 'Trường Đại học Sư phạm', logo: 'https://picsum.photos/seed/uni2/90/90' },
-    { id: 3, name: 'Trường Đại học Khoa Học', logo: 'https://picsum.photos/seed/uni3/90/90' },
-    { id: 4, name: 'Trường Đại học Y Tế Huế', logo: 'https://picsum.photos/seed/uni4/90/90' },
-    { id: 5, name: 'Cao Đẳng Công Nghiệp Huế', logo: 'https://picsum.photos/seed/uni5/90/90' },
-    { id: 6, name: 'xem thêm', more: true },
-  ]
-
-    // Phòng trọ quanh các trường (demo)
-  const uniList_house = [
-    { id: 1, name: 'bệnh viện', logo: 'https://picsum.photos/seed/uni1/90/90' },
-    { id: 2, name: 'trường học', logo: 'https://picsum.photos/seed/uni2/90/90' },
-    { id: 3, name: 'chợ', logo: 'https://picsum.photos/seed/uni3/90/90' },
-    { id: 4, name: 'siêu thị', logo: 'https://picsum.photos/seed/uni4/90/90' },
-    { id: 5, name: 'sông', logo: 'https://picsum.photos/seed/uni5/90/90' },
-    { id: 6, name: 'hồ', more: true },
-  ]
-
-  
-  // Carousel "Cẩm nang"
   const guideRef = useRef(null)
   const scrollGuide = (dir) => {
     const el = guideRef.current
@@ -50,24 +55,73 @@ export default function Homes() {
     el.scrollBy({ left: dir === 'left' ? -delta : delta, behavior: 'smooth' })
   }
 
+  // ===== LOAD DATA TỪ BACKEND =====
   useEffect(() => {
-    setFeatured([
-      { id: 1, title: 'Phòng studio mới, nội thất đẹp', price: 4500000, area: 28, address: 'Q.7, TP.HCM', img: 'https://picsum.photos/seed/a1/1200/800' },
-      { id: 2, title: 'Nhà nguyên căn 1 trệt 1 lầu', price: 9000000, area: 70, address: 'TP. Thủ Đức', img: 'https://picsum.photos/seed/a2/1200/800' },
-      { id: 3, title: 'Căn hộ mini ban công thoáng', price: 5500000, area: 32, address: 'Q.10, TP.HCM', img: 'https://picsum.photos/seed/a3/1200/800' },
-      { id: 4, title: 'Ký túc xá máy lạnh – trung tâm', price: 1300000, area: 12, address: 'Q.3, TP.HCM', img: 'https://picsum.photos/seed/a4/1200/800' },
-      { id: 5, title: 'Phòng trọ có gác, giờ giấc tự do', price: 2800000, area: 20, address: 'Gò Vấp, TP.HCM', img: 'https://picsum.photos/seed/a5/1200/800' },
-      { id: 6, title: 'Căn hộ 1PN full nội thất', price: 8000000, area: 45, address: 'Q.2, TP.HCM', img: 'https://picsum.photos/seed/a6/1200/800' },
-      { id: 7, title: 'Nhà riêng hẻm rộng, an ninh', price: 7500000, area: 60, address: 'Tân Bình, TP.HCM', img: 'https://picsum.photos/seed/a7/1200/800' },
-      { id: 8, title: 'Phòng gần ĐH BK, đi bộ 5 phút', price: 2200000, area: 18, address: 'Q.10, TP.HCM', img: 'https://picsum.photos/seed/a8/1200/800' },
-    ])
-    setBlogs([
-      { id: 101, title: 'Mẹo tìm trọ nhanh trong 24h', excerpt: '3 bước lọc và gọi chủ trọ hiệu quả…', img: 'https://picsum.photos/seed/b1/1200/800' },
-      { id: 102, title: 'Checklist xem trọ an toàn', excerpt: 'Ánh sáng, an ninh, đồng hồ điện nước…', img: 'https://picsum.photos/seed/b2/1200/800' },
-      { id: 103, title: 'Cách thương lượng tiền cọc', excerpt: 'Chuẩn bị giấy tờ và bằng chứng thị trường…', img: 'https://picsum.photos/seed/b3/1200/800' },
-      { id: 104, title: 'Chọn khu vực phù hợp', excerpt: 'Khoảng cách – an ninh – tiện ích…', img: 'https://picsum.photos/seed/b4/1200/800' },
-      { id: 105, title: 'Gợi ý nội thất tiết kiệm', excerpt: 'Bố trí gọn gàng, sáng sủa…', img: 'https://picsum.photos/seed/b5/1200/800' },
-    ])
+    async function loadHome() {
+      try {
+        const [postsRes, statsRes, provRes, catRes] = await Promise.all([
+          fetch('/api/home/featured-posts'),
+          fetch('/api/home/stats'),
+          fetch('/api/provinces'),
+          fetch('/api/categories'),
+        ])
+
+        // Tin nổi bật
+        if (postsRes.ok) {
+          const postsJson = await postsRes.json()
+          const list = postsJson.data || postsJson || []
+          const mapped = list.map((p) => ({
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            area: p.area,
+            address: [
+              p.address,
+              p.ward?.name,
+              p.district?.name,
+              p.province?.name,
+            ]
+              .filter(Boolean)
+              .join(', '),
+            img:
+              p.cover_image_url ||
+              p.cover_image ||
+              (p.images && p.images[0]?.url) ||
+              'https://via.placeholder.com/1200x800?text=Apartment',
+          }))
+          setFeatured(mapped)
+        }
+
+        // Stats
+        if (statsRes.ok) {
+          const statsJson = await statsRes.json()
+          setStats({
+            posts: statsJson.total_posts || 0,
+            landlords: statsJson.total_users || 0,
+            views: statsJson.total_views || 0,
+          })
+        }
+
+        // Provinces
+        if (provRes.ok) {
+          const provJson = await provRes.json()
+          setProvincesList(provJson.data || provJson || [])
+        }
+
+        // Categories
+        if (catRes.ok) {
+          const catJson = await catRes.json()
+          setCategories(catJson.data || catJson || [])
+        }
+
+        // Blogs: để trống, chờ API blog riêng
+        setBlogs([])
+      } catch (err) {
+        console.error('Lỗi load trang home:', err)
+      }
+    }
+
+    loadHome()
   }, [])
 
   const submitSearch = (e) => {
@@ -82,6 +136,27 @@ export default function Homes() {
 
   const mainFeatured = featured[0]
   const otherFeatured = featured.slice(1)
+
+  // demo khu vực quanh trường / tiện ích – có thể giữ tĩnh
+  const uniList_room = [
+    { id: 1, name: 'Trường Đại học Kinh Tế Huế', logo: 'https://picsum.photos/seed/uni1/90/90' },
+    { id: 2, name: 'Trường Đại học Sư phạm', logo: 'https://picsum.photos/seed/uni2/90/90' },
+    { id: 3, name: 'Trường Đại học Khoa Học', logo: 'https://picsum.photos/seed/uni3/90/90' },
+    { id: 4, name: 'Trường Đại học Y Tế Huế', logo: 'https://picsum.photos/seed/uni4/90/90' },
+    { id: 5, name: 'Cao Đẳng Công Nghiệp Huế', logo: 'https://picsum.photos/seed/uni5/90/90' },
+    { id: 6, name: 'xem thêm', more: true },
+  ]
+
+  const uniList_house = [
+    { id: 1, name: 'bệnh viện', logo: 'https://picsum.photos/seed/uni6/90/90' },
+    { id: 2, name: 'trường học', logo: 'https://picsum.photos/seed/uni7/90/90' },
+    { id: 3, name: 'chợ', logo: 'https://picsum.photos/seed/uni8/90/90' },
+    { id: 4, name: 'siêu thị', logo: 'https://picsum.photos/seed/uni9/90/90' },
+    { id: 5, name: 'sông', logo: 'https://picsum.photos/seed/uni10/90/90' },
+    { id: 6, name: 'hồ', more: true },
+  ]
+
+  const displayedCategories = categories.slice(0, 4)
 
   return (
     <div className="pthome">
@@ -119,10 +194,11 @@ export default function Homes() {
                     onChange={(e) => setProvince(e.target.value)}
                   >
                     <option value="">Tỉnh / thành phố</option>
-                    <option value="hcm">TP. Hồ Chí Minh</option>
-                    <option value="hn">Hà Nội</option>
-                    <option value="hue">Thừa Thiên Huế</option>
-                    <option value="dn">Đà Nẵng</option>
+                    {provincesList.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
                   </select>
 
                   <select
@@ -226,45 +302,29 @@ export default function Homes() {
         </div>
 
         <div className="homes-categories__list">
-          <Link to="/" className="homes-cat">
-            <div className="homes-cat__thumb">
-              <img src="https://picsum.photos/seed/c1/400/400" alt="Phòng trọ" />
-            </div>
-            <div className="homes-cat__info">
-              <h3>Phòng trọ</h3>
-              <p>Giá mềm, phù hợp sinh viên & người đi làm.</p>
-            </div>
-          </Link>
+          {displayedCategories.length === 0 && (
+            <p className="homes-note">Chưa có danh mục nào.</p>
+          )}
 
-          <Link to="/can-ho" className="homes-cat">
-            <div className="homes-cat__thumb">
-              <img src="https://picsum.photos/seed/c2/400/400" alt="Căn hộ" />
-            </div>
-            <div className="homes-cat__info">
-              <h3>Căn hộ</h3>
-              <p>Không gian riêng, tiện nghi, an ninh tốt.</p>
-            </div>
-          </Link>
-
-          <Link to="/nha-nguyen-can" className="homes-cat">
-            <div className="homes-cat__thumb">
-              <img src="https://picsum.photos/seed/c3/400/400" alt="Nhà nguyên căn" />
-            </div>
-            <div className="homes-cat__info">
-              <h3>Nhà nguyên căn</h3>
-              <p>Thoải mái cho gia đình hoặc nhóm bạn.</p>
-            </div>
-          </Link>
-
-          <Link to="/ky-tuc-xa" className="homes-cat">
-            <div className="homes-cat__thumb">
-              <img src="https://picsum.photos/seed/c4/400/400" alt="Ký túc xá" />
-            </div>
-            <div className="homes-cat__info">
-              <h3>Ký túc xá</h3>
-              <p>Tiết kiệm, nhiều bạn bè, không lo cô đơn.</p>
-            </div>
-          </Link>
+          {displayedCategories.map((cat) => {
+            const meta = CATEGORY_META[cat.slug] || {}
+            const href = meta.href || `/category/${cat.id}`
+            const img =
+              meta.img ||
+              'https://via.placeholder.com/400x400?text=Category'
+            const desc = meta.desc || 'Danh mục phòng cho thuê.'
+            return (
+              <Link key={cat.id} to={href} className="homes-cat">
+                <div className="homes-cat__thumb">
+                  <img src={img} alt={cat.name} />
+                </div>
+                <div className="homes-cat__info">
+                  <h3>{cat.name}</h3>
+                  <p>{desc}</p>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       </section>
 
@@ -289,7 +349,7 @@ export default function Homes() {
                 <h3 title={mainFeatured.title}>{mainFeatured.title}</h3>
                 <div className="main-meta">
                   <span className="price">
-                    {mainFeatured.price.toLocaleString('vi-VN')} ₫/tháng
+                    {Number(mainFeatured.price || 0).toLocaleString('vi-VN')} ₫/tháng
                   </span>
                   <span>•</span>
                   <span>{mainFeatured.area} m²</span>
@@ -301,7 +361,12 @@ export default function Homes() {
                   hoặc sinh viên muốn không gian riêng tư.
                 </p>
                 <div className="main-actions">
-                  <Link to="/" className="homes-btn homes-btn--primary">Xem chi tiết</Link>
+                  <Link
+                    to={`/post/${mainFeatured.id}`}
+                    className="homes-btn homes-btn--primary"
+                  >
+                    Xem chi tiết
+                  </Link>
                   <button className="homes-btn homes-btn--ghost">Lưu tin</button>
                 </div>
               </div>
@@ -309,7 +374,7 @@ export default function Homes() {
           )}
 
           <div className="homes-featured__list">
-            {otherFeatured.map(item => (
+            {otherFeatured.map((item) => (
               <article key={item.id} className="homes-featured__item">
                 <div className="item-thumb">
                   <img src={item.img} alt={item.title} />
@@ -318,7 +383,7 @@ export default function Homes() {
                   <h4 title={item.title}>{item.title}</h4>
                   <div className="item-meta">
                     <span className="price">
-                      {item.price.toLocaleString('vi-VN')} ₫/tháng
+                      {Number(item.price || 0).toLocaleString('vi-VN')} ₫/tháng
                     </span>
                     <span>•</span>
                     <span>{item.area} m²</span>
@@ -348,18 +413,24 @@ export default function Homes() {
           </div>
 
           <div className="homes-uni__list">
-            {uniList_room.map(u => (
+            {uniList_room.map((u) => (
               <a
                 key={u.id}
                 href={u.more ? '/schools' : '/?q=' + encodeURIComponent(u.name)}
                 className={'homes-uni__item' + (u.more ? ' is-more' : '')}
               >
                 <div className="homes-uni__logo">
-                  {!u.more ? <img src={u.logo} alt={u.name} /> : <span className="homes-uni__plus">+</span>}
+                  {!u.more ? (
+                    <img src={u.logo} alt={u.name} />
+                  ) : (
+                    <span className="homes-uni__plus">+</span>
+                  )}
                 </div>
                 <div className="homes-uni__info">
                   <p className="name">{u.more ? 'Xem thêm trường khác' : u.name}</p>
-                  {!u.more && <p className="desc">Nhiều phòng trọ được sinh viên đánh giá tốt.</p>}
+                  {!u.more && (
+                    <p className="desc">Nhiều phòng trọ được sinh viên đánh giá tốt.</p>
+                  )}
                 </div>
               </a>
             ))}
@@ -367,66 +438,91 @@ export default function Homes() {
         </div>
       </section>
 
-      {/* ===== CẨM NANG THUÊ PHÒNG (CAROUSEL) ===== */}
-      <section className="container homes-guide">
-        <div className="homes-section-head">
-          <div>
-            <h2>Cẩm nang thuê phòng</h2>
-            <p>Kinh nghiệm thực tế khi đi xem trọ, thương lượng hợp đồng và dọn vào ở.</p>
-          </div>
-          <a className="homes-link" href="/blog">Xem tất cả bài viết</a>
-        </div>
-
-        <div className="homes-guide__wrap">
-          <button className="homes-guide__nav is-left" onClick={() => scrollGuide('left')} aria-label="Prev">‹</button>
-
-          <div className="homes-guide__track" ref={guideRef}>
-            {blogs.map(b => (
-              <article className="homes-guide__card" key={b.id}>
-                <div className="homes-guide__media">
-                  <img src={b.img} alt={b.title} />
-                  <span className="homes-guide__date">03/10/2022</span>
-                </div>
-                <div className="homes-guide__body">
-                  <h3 className="homes-guide__title">{b.title}</h3>
-                  <p className="homes-guide__excerpt">{b.excerpt}</p>
-                  <a href="/blog" className="homes-link">Đọc chi tiết</a>
-                </div>
-              </article>
-            ))}
+      {/* ===== CẨM NANG THUÊ PHÒNG (CAROUSEL) – chỉ hiện khi có blog ===== */}
+      {blogs.length > 0 && (
+        <section className="container homes-guide">
+          <div className="homes-section-head">
+            <div>
+              <h2>Cẩm nang thuê phòng</h2>
+              <p>Kinh nghiệm thực tế khi đi xem trọ, thương lượng hợp đồng và dọn vào ở.</p>
+            </div>
+            <a className="homes-link" href="/blog">
+              Xem tất cả bài viết
+            </a>
           </div>
 
-          <button className="homes-guide__nav is-right" onClick={() => scrollGuide('right')} aria-label="Next">›</button>
-        </div>
-      </section>
+          <div className="homes-guide__wrap">
+            <button
+              className="homes-guide__nav is-left"
+              onClick={() => scrollGuide('left')}
+              aria-label="Prev"
+            >
+              ‹
+            </button>
 
-        <section className="container homes-uni">
+            <div className="homes-guide__track" ref={guideRef}>
+              {blogs.map((b) => (
+                <article className="homes-guide__card" key={b.id}>
+                  <div className="homes-guide__media">
+                    <img src={b.img} alt={b.title} />
+                    <span className="homes-guide__date">03/10/2022</span>
+                  </div>
+                  <div className="homes-guide__body">
+                    <h3 className="homes-guide__title">{b.title}</h3>
+                    <p className="homes-guide__excerpt">{b.excerpt}</p>
+                    <a href="/blog" className="homes-link">
+                      Đọc chi tiết
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <button
+              className="homes-guide__nav is-right"
+              onClick={() => scrollGuide('right')}
+              aria-label="Next"
+            >
+              ›
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* ===== CĂN HỘ GẦN KHU VỰC TIỆN LỢI ===== */}
+      <section className="container homes-uni">
         <div className="homes-uni__inner">
           <div className="homes-uni__intro">
             <h2>Căn hộ gần các khu vực tiện lợi</h2>
-            <p>
-              Dành riêng cho gia đình hoặc cặp đôi tiện lợi đi lại
-            </p>
+            <p>Dành riêng cho gia đình hoặc cặp đôi tiện lợi đi lại</p>
             <ul className="homes-uni__bullet">
               <li>Khoảng cách rõ ràng, ước tính thời gian di chuyển.</li>
               <li>Ưu tiên khu vực an ninh, gần tiện ích thiết yếu.</li>
-              <li>Lọc theo giá & hình thức ở (chỉ 1 hoặc nhiều phòng ngủ, diện tích).</li>
+              <li>
+                Lọc theo giá &amp; hình thức ở (chỉ 1 hoặc nhiều phòng ngủ, diện tích).
+              </li>
             </ul>
           </div>
 
           <div className="homes-uni__list">
-            {uniList_house.map(u => (
+            {uniList_house.map((u) => (
               <a
                 key={u.id}
                 href={u.more ? '/schools' : '/?q=' + encodeURIComponent(u.name)}
                 className={'homes-uni__item' + (u.more ? ' is-more' : '')}
               >
                 <div className="homes-uni__logo">
-                  {!u.more ? <img src={u.logo} alt={u.name} /> : <span className="homes-uni__plus">+</span>}
+                  {!u.more ? (
+                    <img src={u.logo} alt={u.name} />
+                  ) : (
+                    <span className="homes-uni__plus">+</span>
+                  )}
                 </div>
                 <div className="homes-uni__info">
                   <p className="name">{u.more ? 'Xem thêm trường khác' : u.name}</p>
-                  {!u.more && <p className="desc">Nhiều phòng trọ được sinh viên đánh giá tốt.</p>}
+                  {!u.more && (
+                    <p className="desc">Nhiều phòng trọ được sinh viên đánh giá tốt.</p>
+                  )}
                 </div>
               </a>
             ))}
@@ -452,31 +548,37 @@ export default function Homes() {
         </div>
       </section>
 
-      {/* ===== BLOG MỚI ===== */}
-      <section className="container homes-blog">
-        <div className="homes-section-head">
-          <div>
-            <h2>Blog mới</h2>
-            <p>Cập nhật kiến thức & tips nhỏ giúp cuộc sống trọ dễ chịu hơn.</p>
+      {/* ===== BLOG MỚI – chỉ hiện khi có blog ===== */}
+      {blogs.length > 0 && (
+        <section className="container homes-blog">
+          <div className="homes-section-head">
+            <div>
+              <h2>Blog mới</h2>
+              <p>Cập nhật kiến thức &amp; tips nhỏ giúp cuộc sống trọ dễ chịu hơn.</p>
+            </div>
+            <Link to="/blog" className="homes-link">
+              Xem thêm bài viết
+            </Link>
           </div>
-          <Link to="/blog" className="homes-link">Xem thêm bài viết</Link>
-        </div>
 
-        <div className="homes-blog__grid">
-          {blogs.slice(0, 3).map(b => (
-            <article key={b.id} className="homes-blog__item">
-              <div className="thumb">
-                <img src={b.img} alt={b.title} />
-              </div>
-              <div className="body">
-                <h3>{b.title}</h3>
-                <p>{b.excerpt}</p>
-                <Link to="/blog" className="homes-link">Đọc bài</Link>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+          <div className="homes-blog__grid">
+            {blogs.slice(0, 3).map((b) => (
+              <article key={b.id} className="homes-blog__item">
+                <div className="thumb">
+                  <img src={b.img} alt={b.title} />
+                </div>
+                <div className="body">
+                  <h3>{b.title}</h3>
+                  <p>{b.excerpt}</p>
+                  <Link to="/blog" className="homes-link">
+                    Đọc bài
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

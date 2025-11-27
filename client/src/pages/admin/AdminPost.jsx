@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/axios.js'
+import { api } from '../../api/axios.js'
 
 export default function AdminPost(){
   const [title,setTitle]=useState('')

@@ -1,23 +1,31 @@
 // src/components/Header.jsx
-import { useState, useEffect, useRef} from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import logo from '@/assets/images/logo.png'
-import Login from '../pages/Login'   // 💡 THÊM COMPONENT NÀY (bước 2)
+import Login from '../pages/Login'
 import Register from '../pages/Register'
+import UserSettingsModal from '../components/UserSettingsModal' // 🔹 popup cài đặt tài khoản
 
 export default function Header() {
   const [showLogin, setShowLogin] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
 
-  const navRef = useRef(null)
-  const location = useLocation()
+  const [showSettings, setShowSettings] = useState(false) // popup cài đặt tài khoản
+
+  const [user, setUser] = useState(null)
   const [indicatorStyle, setIndicatorStyle] = useState({})
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const navRef = useRef(null)
+  const userMenuRef = useRef(null)
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const navClass = ({ isActive }) =>
     'nav__link' + (isActive ? ' is-active' : '')
 
-//cập nhật vị trí của hiệu ứng viên thuốc
-   useEffect(() => {
+  // ------- Hiệu ứng viên thuốc nav -------
+  useEffect(() => {
     const navEl = navRef.current
     if (!navEl) return
 
@@ -30,7 +38,7 @@ export default function Header() {
     const navRect = navEl.getBoundingClientRect()
     const itemRect = active.getBoundingClientRect()
 
-    const left = itemRect.left - navRect.left - 6 
+    const left = itemRect.left - navRect.left - 6
     const width = itemRect.width + 12
 
     setIndicatorStyle({
@@ -39,7 +47,63 @@ export default function Header() {
       opacity: 1,
     })
   }, [location.pathname])
-//----//
+
+  // ------- Đọc user từ localStorage + nghe auth:changed -------
+  useEffect(() => {
+    const loadUser = () => {
+      const raw = localStorage.getItem('auth_user')
+      setUser(raw ? JSON.parse(raw) : null)
+    }
+
+    loadUser()
+    window.addEventListener('auth:changed', loadUser)
+    return () => window.removeEventListener('auth:changed', loadUser)
+  }, [])
+
+  // ------- Đóng dropdown khi click ngoài -------
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleClick = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen])
+
+  // ------- Logout -------
+  const handleLogout = async () => {
+    const token = localStorage.getItem('access_token')
+
+    try {
+      if (token) {
+        await fetch('/api/logout', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        })
+      }
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('auth_user')
+      setUser(null)
+      window.dispatchEvent(new Event('auth:changed'))
+      setMenuOpen(false)
+
+      if (location.pathname.startsWith('/admin')) {
+        navigate('/')
+      }
+    }
+  }
+
+  // avatar: dùng ảnh nếu backend trả avatar_url, không thì lấy chữ cái đầu tên
+  const avatarUrl = user?.avatar_url || null
+  const avatarChar = user?.name?.charAt(0)?.toUpperCase() || 'U'
 
   return (
     <>
@@ -50,11 +114,7 @@ export default function Header() {
           </Link>
 
           <nav className="nav" ref={navRef}>
-            {/* hiệu ứng viên thuốc */}
-            <span
-              className="nav__indicator"
-              style={indicatorStyle}
-            />
+            <span className="nav__indicator" style={indicatorStyle} />
             <NavLink to="/phong-tro" className={navClass}>Phòng trọ</NavLink>
             <NavLink to="/nha-nguyen-can" className={navClass}>Nhà nguyên căn</NavLink>
             <NavLink to="/can-ho" className={navClass}>Căn hộ</NavLink>
@@ -64,35 +124,126 @@ export default function Header() {
           </nav>
 
           <div className="site-header__actions">
-            {/* Đăng nhập: mở popup, KHÔNG chuyển trang */}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setShowLogin(true)}
-            >
-              Đăng nhập
-            </button>
+            {/* CHƯA ĐĂNG NHẬP */}
+            {!user && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => setShowLogin(true)}
+                >
+                  Đăng nhập
+                </button>
 
-             {/* Đăng ký: mở popup, KHÔNG chuyển trang */}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setShowRegister(true)}
-            >
-              Đăng ký
-            </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => setShowRegister(true)}
+                >
+                  Đăng ký
+                </button>
+              </>
+            )}
+
+            {/* ĐÃ ĐĂNG NHẬP */}
+            {user && (
+              <div
+                className="header-auth-user"
+                ref={userMenuRef}
+              >
+                {/* Avatar (nhấn để mở menu) */}
+                <button
+                  type="button"
+                  className="header-avatar-btn"
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                >
+                  <div className="header-avatar">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={user.name} />
+                    ) : (
+                      avatarChar
+                    )}
+                  </div>
+                </button>
+
+                {/* Dropdown menu */}
+                {menuOpen && (
+                  <div className="header-menu">
+                    <div className="header-menu__top">
+                      <div className="header-menu__avatar">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={user.name} />
+                        ) : (
+                          avatarChar
+                        )}
+                      </div>
+                      <div>
+                        <p className="header-menu__name">{user.name}</p>
+                        <p className="header-menu__role">
+                          {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="header-menu__list">
+                      {/* ➜ Cài đặt tài khoản: tên, email, SĐT, mật khẩu, avatar */}
+                      <button
+                        type="button"
+                        className="header-menu__item"
+                        onClick={() => {
+                          setShowSettings(true)
+                          setMenuOpen(false)
+                        }}
+                      >
+                        Cài đặt tài khoản
+                      </button>
+
+                      {/* Chỉ admin mới có nút vào khu quản trị */}
+                      {user.role === 'admin' && (
+                        <button
+                          type="button"
+                          className="header-menu__item"
+                          onClick={() => {
+                            navigate('/admin')
+                            setMenuOpen(false)
+                          }}
+                        >
+                          Khu vực quản trị
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="header-menu__item header-menu__item--danger"
+                        onClick={handleLogout}
+                      >
+                        Đăng xuất
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Popup login nổi giữa màn hình */}
-      {showLogin && (
-        <Login onClose={() => setShowLogin(false)} />
+      {/* Popup login / register */}
+      {showLogin && <Login onClose={() => setShowLogin(false)} />}
+      {showRegister && <Register onClose={() => setShowRegister(false)} />}
+
+      {/* Popup cài đặt tài khoản */}
+      {showSettings && user && (
+        <UserSettingsModal
+          user={user}
+          onClose={() => setShowSettings(false)}
+          onUpdated={(u) => {
+            setUser(u)
+            localStorage.setItem('auth_user', JSON.stringify(u))
+            window.dispatchEvent(new Event('auth:changed'))
+          }}
+        />
       )}
-        {showRegister && (
-        <Register onClose={() => setShowRegister(false)} />
-      )}
-      
     </>
   )
 }

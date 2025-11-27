@@ -1,9 +1,14 @@
 // src/pages/RoomsExplore.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import '../assets/style/style.css'
 
-/** Bộ lọc giá & diện tích cho Phòng trọ */
+// ===== CẤU HÌNH API BASE URL =====
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+
+/** Bộ lọc giá & diện tích cho phòng trọ */
 const PRICE = [
   { v: '', t: 'Mức giá' },
   { v: '0-1500000', t: '< 1.5 triệu' },
@@ -53,18 +58,6 @@ const policy = [
   { k: 'khong-chung-chu', t: 'Không ở chung chủ' },
 ]
 
-/** Mock data Phòng trọ (sau này thay bằng API) */
-const MOCK_ROOMS = Array.from({ length: 36 }).map((_, i) => ({
-  id: i + 1,
-  title: `Phòng trọ full nội thất, gần trung tâm #${i + 1}`,
-  price: [1200000, 1500000, 2000000, 2500000, 3000000, 3500000][i % 6],
-  area: [12, 15, 18, 20, 25, 30, 35][i % 7],
-  addr: ['Q.7, TP.HCM', 'Q.1, TP.HCM', 'Bình Thạnh, TP.HCM', 'TP. Thủ Đức'][i % 4],
-  img: `https://picsum.photos/seed/room${i + 1}/1200/800`,
-  vip: i % 4 === 0,
-  time: i % 2 === 0 ? 'Hôm nay' : 'Hôm qua',
-}))
-
 /** Helper: danh sách trang có “…” */
 function pageList(totalPages, current) {
   const delta = 1
@@ -79,29 +72,43 @@ function pageList(totalPages, current) {
   return range
 }
 
+// category_id = 1 cho Rooms
+const CATEGORY_ID = 1
+
 export default function RoomsExplore() {
   const nav = useNavigate()
   const { search } = useLocation()
   const qs = new URLSearchParams(search)
 
-  // ===== state =====
+  // ==== LOCATION STATE (TỈNH / QUẬN) ====
+  const [provinceList, setProvinceList] = useState([])
+  const [districtList, setDistrictList] = useState([])
+
+  // ==== FILTER STATE (được dùng để LỌC THỰC TẾ) ====
   const [q, setQ] = useState(qs.get('q') || '')
   const [province, setProvince] = useState(qs.get('province') || '')
   const [district, setDistrict] = useState(qs.get('district') || '')
   const [price, setPrice] = useState(qs.get('price') || '')
   const [area, setArea] = useState(qs.get('area') || '')
-  const [amen, setAmen] = useState((qs.get('amen') || '').split(',').filter(Boolean))
+  const [amen, setAmen] = useState(
+    (qs.get('amen') || '').split(',').filter(Boolean),
+  )
   const [sort, setSort] = useState(qs.get('sort') || 'new')
   const [page, setPage] = useState(Number(qs.get('page') || 1))
 
-  /** 8 tin mỗi trang */
+  // version filter đã APPLY – chỉ khi tăng version mới lọc lại
+  const [appliedVersion, setAppliedVersion] = useState(0)
+
   const PAGE_SIZE = 8
 
-  // data
-  const [items, setItems] = useState([])
+  // ==== DATA STATE ====
+  const [rawItems, setRawItems] = useState([]) // tất cả rooms từ API
+  const [items, setItems] = useState([]) // sau khi lọc + phân trang
   const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  // sticky shadow cho thanh filter-top
+  // ==== STICKY BAR ====
   const barRef = useRef(null)
   useEffect(() => {
     const onScroll = () => {
@@ -113,11 +120,104 @@ export default function RoomsExplore() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Lọc + sắp xếp + chia trang (mock)
+  // ===== LẤY DANH SÁCH TỈNH / THÀNH =====
   useEffect(() => {
-    let data = [...MOCK_ROOMS]
+    async function loadProvinces() {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/provinces`)
+        const data = res.data.data || res.data
+        setProvinceList(data)
+      } catch (err) {
+        console.error('Lỗi load provinces', err)
+      }
+    }
+    loadProvinces()
+  }, [])
 
-    if (q) data = data.filter(d => d.title.toLowerCase().includes(q.toLowerCase()))
+  // ===== LẤY DANH SÁCH QUẬN / HUYỆN KHI ĐỔI TỈNH =====
+  useEffect(() => {
+    if (!province) {
+      setDistrictList([])
+      setDistrict('')
+      return
+    }
+
+    async function loadDistricts() {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/districts`, {
+          params: { province_id: province }, // province đang là id tỉnh
+        })
+        const data = res.data.data || res.data
+        setDistrictList(data)
+      } catch (err) {
+        console.error('Lỗi load districts', err)
+      }
+    }
+
+    loadDistricts()
+  }, [province])
+
+  // ===== LẤY DANH SÁCH PHÒNG (CATEGORY_ID = 1) =====
+  useEffect(() => {
+    async function loadRooms() {
+      try {
+        setLoading(true)
+        setError('')
+
+        const res = await axios.get(
+          `${API_BASE_URL}/categories/${CATEGORY_ID}/posts`,
+        )
+
+        const posts = res.data.posts || res.data.data || res.data || []
+
+        // 🔥 chỉ lấy bài đã duyệt (published)
+        const mapped = posts
+          .filter(p => p.status === 'published')
+          .map(p => ({
+            id: p.id,
+            title: p.title,
+            price: Number(p.price) || 0,
+            area: Number(p.area) || 0,
+            addr: p.address || p.full_address || '',
+            img:
+              p.images?.[0]?.url ||
+              'https://via.placeholder.com/400x250?text=No+Image',
+            vip: p.is_vip === 1 || p.vip === 1,
+            time: new Date(p.created_at || Date.now()).toLocaleDateString(
+              'vi-VN',
+            ),
+            province_id: p.province_id || null,
+            district_id: p.district_id || null,
+          }))
+
+        setRawItems(mapped)
+      } catch (err) {
+        console.error(err)
+        setError('Không tải được danh sách phòng trọ.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadRooms()
+  }, [])
+
+  // ===== FILTER + SORT + PAGINATE =====
+  useEffect(() => {
+    let data = [...rawItems]
+
+    if (q) {
+      const qLower = q.toLowerCase()
+      data = data.filter(d => d.title.toLowerCase().includes(qLower))
+    }
+
+    if (province) {
+      data = data.filter(d => String(d.province_id) === String(province))
+    }
+    if (district) {
+      data = data.filter(d => String(d.district_id) === String(district))
+    }
+
     if (price) {
       const [mi, ma] = price.split('-').map(Number)
       data = data.filter(d => d.price >= mi && d.price <= ma)
@@ -126,18 +226,18 @@ export default function RoomsExplore() {
       const [mi, ma] = area.split('-').map(Number)
       data = data.filter(d => d.area >= mi && d.area <= ma)
     }
-    // amen / environment / member / policy: khi có API thật thì lọc phía server
 
     if (sort === 'price_asc') data.sort((a, b) => a.price - b.price)
     else if (sort === 'price_desc') data.sort((a, b) => b.price - a.price)
     else if (sort === 'area_desc') data.sort((a, b) => b.area - a.area)
+    // sort === 'new' giữ order mặc định từ API
 
     setTotal(data.length)
     const start = (page - 1) * PAGE_SIZE
     setItems(data.slice(start, start + PAGE_SIZE))
-  }, [q, province, district, price, area, amen, sort, page])
+  }, [rawItems, appliedVersion, page])
 
-  // sync URL query
+  // ===== SYNC QUERY LÊN URL =====
   useEffect(() => {
     const p = new URLSearchParams()
     if (q) p.set('q', q)
@@ -148,33 +248,36 @@ export default function RoomsExplore() {
     if (amen.length) p.set('amen', amen.join(','))
     if (sort !== 'new') p.set('sort', sort)
     if (page > 1) p.set('page', String(page))
-
-    nav({ search: p.toString() }) // chỉ đổi query, không đổi path
-  }, [q, province, district, price, area, amen, sort, page, nav])
+    nav({ search: p.toString() })
+  }, [appliedVersion, page, nav])
 
   const toggleAmen = k => {
     setAmen(s => (s.includes(k) ? s.filter(x => x !== k) : [...s, k]))
-    setPage(1)
   }
 
   const chips = useMemo(() => {
     const arr = []
     if (q) arr.push({ k: 'q', t: `"${q}"` })
-    if (province) arr.push({ k: 'province', t: province })
-    if (district) arr.push({ k: 'district', t: district })
+
+    if (province) {
+      const pObj = provinceList.find(p => String(p.id) === String(province))
+      arr.push({ k: 'province', t: pObj?.name || 'Tỉnh/Thành' })
+    }
+    if (district) {
+      const dObj = districtList.find(d => String(d.id) === String(district))
+      arr.push({ k: 'district', t: dObj?.name || 'Quận/Huyện' })
+    }
     if (price) arr.push({ k: 'price', t: PRICE.find(x => x.v === price)?.t })
     if (area) arr.push({ k: 'area', t: AREA.find(x => x.v === area)?.t })
 
-    // gom label cho tất cả amen/environment/member/policy
     const amenLabelPool = [...AMENITIES, ...environment, ...member, ...policy]
-
     amen.forEach(a => {
       const label = amenLabelPool.find(x => x.k === a)?.t || a
       arr.push({ k: 'amen', v: a, t: label })
     })
 
     return arr
-  }, [q, province, district, price, area, amen])
+  }, [appliedVersion, provinceList, districtList, q, province, district, price, area, amen])
 
   const clearChip = (k, v) => {
     if (k === 'q') setQ('')
@@ -184,6 +287,7 @@ export default function RoomsExplore() {
     if (k === 'area') setArea('')
     if (k === 'amen') setAmen(s => s.filter(x => x !== v))
     setPage(1)
+    setAppliedVersion(ver => ver + 1)
   }
 
   const clearAll = () => {
@@ -193,26 +297,36 @@ export default function RoomsExplore() {
     setPrice('')
     setArea('')
     setAmen([])
-    setPage(1)
     setSort('new')
+    setPage(1)
+    setAppliedVersion(ver => ver + 1)
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
+  const applyFilters = () => {
+    setPage(1)
+    setAppliedVersion(ver => ver + 1)
+  }
+
   return (
     <div className="re">
       {/* HERO */}
-      <section className="re-hero u-fullbleed">
+      <section
+        className="re-hero u-fullbleed"
+        style={{
+          backgroundImage:
+            'url("https://kientructrangkim.com/wp-content/uploads/2023/09/thiet-ke-nha-cho-thue-tro-_-v1.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
         <div className="container re-hero__inner">
           <div>
             <h1>Khám phá phòng trọ • phòng cho thuê</h1>
-            <p>Nhiều mức giá, phù hợp sinh viên & người đi làm.</p>
+            <p>Nhiều mức giá, phù hợp sinh viên &amp; người đi làm.</p>
           </div>
-          <img
-            className="re-hero__art"
-            src="https://picsum.photos/seed/hero-rooms/680/380"
-            alt="Phòng trọ cho thuê"
-          />
         </div>
       </section>
 
@@ -223,7 +337,7 @@ export default function RoomsExplore() {
             className="rebar-search"
             onSubmit={e => {
               e.preventDefault()
-              setPage(1)
+              applyFilters()
             }}
           >
             <div className="re-input re-input--grow">
@@ -231,9 +345,10 @@ export default function RoomsExplore() {
               <input
                 value={q}
                 onChange={e => setQ(e.target.value)}
-                placeholder="Từ khoá, khu vực, gần trường, gần chợ..."
+                placeholder="Từ khoá, khu vực, tuyến đường..."
               />
             </div>
+
             <select
               className="re-input"
               value={province}
@@ -243,28 +358,31 @@ export default function RoomsExplore() {
               }}
             >
               <option value="">Tỉnh/Thành</option>
-              <option>TP. Hồ Chí Minh</option>
-              <option>Hà Nội</option>
-              <option>Đà Nẵng</option>
+              {provinceList.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
             </select>
+
             <select
               className="re-input"
               value={district}
               onChange={e => setDistrict(e.target.value)}
+              disabled={!province}
             >
               <option value="">Quận/Huyện</option>
-              <option>Quận 1</option>
-              <option>Quận 7</option>
-              <option>Bình Thạnh</option>
-              <option>TP. Thủ Đức</option>
+              {districtList.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
             </select>
+
             <select
               className="re-input"
               value={price}
-              onChange={e => {
-                setPrice(e.target.value)
-                setPage(1)
-              }}
+              onChange={e => setPrice(e.target.value)}
             >
               {PRICE.map(o => (
                 <option key={o.v} value={o.v}>
@@ -272,13 +390,11 @@ export default function RoomsExplore() {
                 </option>
               ))}
             </select>
+
             <select
               className="re-input"
               value={area}
-              onChange={e => {
-                setArea(e.target.value)
-                setPage(1)
-              }}
+              onChange={e => setArea(e.target.value)}
             >
               {AREA.map(o => (
                 <option key={o.v} value={o.v}>
@@ -286,19 +402,18 @@ export default function RoomsExplore() {
                 </option>
               ))}
             </select>
+
             <select
               className="re-input"
               value={sort}
-              onChange={e => {
-                setSort(e.target.value)
-                setPage(1)
-              }}
+              onChange={e => setSort(e.target.value)}
             >
               <option value="new">Tin mới</option>
               <option value="price_asc">Giá tăng dần</option>
               <option value="price_desc">Giá giảm dần</option>
               <option value="area_desc">Diện tích lớn</option>
             </select>
+
             <button className="re-btn re-btn--primary" type="submit">
               Tìm
             </button>
@@ -331,13 +446,18 @@ export default function RoomsExplore() {
           <header className="re-results__head">
             <div>
               <h2>Phòng trọ</h2>
-              <p>{total.toLocaleString()} tin phù hợp</p>
+              {loading ? <p>Đang tải...</p> : <p>{total.toLocaleString()} tin phù hợp</p>}
             </div>
           </header>
 
+          {error && <p className="re-error">{error}</p>}
+
           <div className="re-grid">
             {items.map(it => (
-              <article key={it.id} className={'re-card' + (it.vip ? ' is-vip' : '')}>
+              <article
+                key={it.id}
+                className={'re-card' + (it.vip ? ' is-vip' : '')}
+              >
                 <div className="re-card__media">
                   <img src={it.img} alt={it.title} />
                   {it.vip && <span className="re-badge">VIP</span>}
@@ -347,7 +467,9 @@ export default function RoomsExplore() {
                     {it.title}
                   </h3>
                   <div className="re-card__meta">
-                    <span className="price">{it.price.toLocaleString()} ₫/tháng</span>
+                    <span className="price">
+                      {it.price?.toLocaleString()} ₫/tháng
+                    </span>
                     <span className="dot">•</span>
                     <span>{it.area} m²</span>
                     <span className="dot">•</span>
@@ -385,7 +507,7 @@ export default function RoomsExplore() {
                 >
                   {n}
                 </button>
-              )
+              ),
             )}
             <button
               disabled={page >= totalPages}
@@ -396,53 +518,16 @@ export default function RoomsExplore() {
           </nav>
         </div>
 
-        {/* RIGHT: ASIDE FILTER (sticky) */}
+        {/* RIGHT: ASIDE FILTER */}
         <aside className="re-aside">
           <div className="re-filtercard">
             <h3>Bộ lọc nhanh</h3>
 
             <div className="re-field">
-              <label>Tỉnh/Thành</label>
-              <select
-                value={province}
-                onChange={e => {
-                  setProvince(e.target.value)
-                  setDistrict('')
-                  setPage(1)
-                }}
-              >
-                <option value="">Tất cả</option>
-                <option>TP. Hồ Chí Minh</option>
-                <option>Hà Nội</option>
-                <option>Đà Nẵng</option>
-              </select>
-            </div>
-
-            <div className="re-field">
-              <label>Quận/Huyện</label>
-              <select
-                value={district}
-                onChange={e => {
-                  setDistrict(e.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="">Tất cả</option>
-                <option>Quận 1</option>
-                <option>Quận 7</option>
-                <option>Bình Thạnh</option>
-                <option>TP. Thủ Đức</option>
-              </select>
-            </div>
-
-            <div className="re-field">
               <label>Mức giá</label>
               <select
                 value={price}
-                onChange={e => {
-                  setPrice(e.target.value)
-                  setPage(1)
-                }}
+                onChange={e => setPrice(e.target.value)}
               >
                 {PRICE.map(o => (
                   <option key={o.v} value={o.v}>
@@ -456,10 +541,7 @@ export default function RoomsExplore() {
               <label>Diện tích</label>
               <select
                 value={area}
-                onChange={e => {
-                  setArea(e.target.value)
-                  setPage(1)
-                }}
+                onChange={e => setArea(e.target.value)}
               >
                 {AREA.map(o => (
                   <option key={o.v} value={o.v}>
@@ -537,10 +619,7 @@ export default function RoomsExplore() {
               <label>Sắp xếp</label>
               <select
                 value={sort}
-                onChange={e => {
-                  setSort(e.target.value)
-                  setPage(1)
-                }}
+                onChange={e => setSort(e.target.value)}
               >
                 <option value="new">Tin mới</option>
                 <option value="price_asc">Giá tăng dần</option>
@@ -553,7 +632,7 @@ export default function RoomsExplore() {
               <button
                 type="button"
                 className="re-btn re-btn--primary"
-                onClick={() => setPage(1)}
+                onClick={applyFilters}
               >
                 Áp dụng
               </button>

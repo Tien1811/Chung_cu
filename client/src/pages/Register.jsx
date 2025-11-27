@@ -6,6 +6,7 @@ export default function Register({ onClose }) {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    phone_number: '',           // 💡 THÊM: đúng với backend
     password: '',
     password_confirmation: '',
   })
@@ -13,7 +14,7 @@ export default function Register({ onClose }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // khóa scroll body khi mở 
+  // Khóa scroll body khi mở popup
   useEffect(() => {
     const old = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -39,10 +40,28 @@ export default function Register({ onClose }) {
     setError('')
     setSuccess('')
 
-    const { name, email, password, password_confirmation } = form
+    const {
+      name,
+      email,
+      phone_number,
+      password,
+      password_confirmation,
+    } = form
 
-    if (!name.trim() || !email.trim() || !password.trim() || !password_confirmation.trim()) {
+    // ===== VALIDATE TRƯỚC 1 LẦN Ở FE =====
+    if (
+      !name.trim() ||
+      !email.trim() ||
+      !phone_number.trim() ||
+      !password.trim() ||
+      !password_confirmation.trim()
+    ) {
       setError('Vui lòng nhập đầy đủ tất cả các trường.')
+      return
+    }
+
+    if (!/^0[0-9]{9}$/.test(phone_number)) {
+      setError('Số điện thoại phải có 10 số và bắt đầu bằng 0 (vd: 0901234567).')
       return
     }
 
@@ -59,10 +78,31 @@ export default function Register({ onClose }) {
     try {
       setLoading(true)
 
-      // Gửi đúng cấu trúc theo bảng users (name, email, password, password_confirmation)
+      /**
+       * GỌI API:
+       *  POST /api/register  -> AuthController@register
+       *
+       * Body gửi lên:
+       *  { name, email, phone_number, password, password_confirmation }
+       *
+       * Response thành công:
+       *  {
+       *    status: true,
+       *    message: "Đăng ký thành công",
+       *    access_token: "...",
+       *    token_type: "Bearer",
+       *    user: { ... }
+       *  }
+       *
+       * Lỗi validate (422):
+       *  { status: false, message: "Lỗi xác thực dữ liệu", errors: { field: [...] } }
+       */
       const res = await fetch('/api/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
         body: JSON.stringify(form),
       })
 
@@ -71,15 +111,28 @@ export default function Register({ onClose }) {
       try {
         data = JSON.parse(text)
       } catch {
-        data = null
+        throw new Error('Máy chủ trả về dữ liệu không hợp lệ.')
       }
 
-      if (!res.ok) {
-        throw new Error(data?.message || 'Đăng ký thất bại, vui lòng kiểm tra lại.')
+      if (!res.ok || data.status === false) {
+        // Nếu là lỗi validate 422 -> show lỗi đầu tiên
+        if (res.status === 422 && data.errors) {
+          const firstError =
+            Object.values(data.errors)[0]?.[0] || 'Lỗi xác thực dữ liệu'
+          throw new Error(firstError)
+        }
+
+        throw new Error(data.message || 'Đăng ký thất bại, vui lòng kiểm tra lại.')
       }
 
+      // === ĐĂNG KÝ THÀNH CÔNG ===
       setSuccess('Đăng ký thành công! Bạn có thể đăng nhập ngay bây giờ.')
-      // Đăng ký xong đóng popup sau 1s
+
+      // (tuỳ bạn) Nếu muốn auto đăng nhập luôn thì có thể lưu token:
+      // localStorage.setItem('access_token', data.access_token)
+      // localStorage.setItem('auth_user', JSON.stringify(data.user))
+
+      // Đóng popup sau 1s
       setTimeout(() => {
         onClose()
       }, 1000)
@@ -106,7 +159,8 @@ export default function Register({ onClose }) {
 
           <h2 className="register-title">Tạo tài khoản</h2>
           <p className="register-sub">
-            Đăng ký để lưu phòng yêu thích, xem lịch sử và viết đánh giá phòng trọ.
+            Đăng ký để tham gia cùng APARTMENTS AND CONDOMINIUMS lựa chọn cho
+            mình nơi ở an toàn, phù hợp nhé!
           </p>
 
           <form className="reg-form" onSubmit={handleSubmit}>
@@ -130,6 +184,18 @@ export default function Register({ onClose }) {
                 onChange={handleChange}
               />
               <span>Email</span>
+            </label>
+
+            {/* 💡 THÊM TRƯỜNG SĐT KHỚP phone_number CỦA BACKEND */}
+            <label className="reg-field">
+              <input
+                type="text"
+                name="phone_number"
+                placeholder=" "
+                value={form.phone_number}
+                onChange={handleChange}
+              />
+              <span>Số điện thoại</span>
             </label>
 
             <label className="reg-field">
@@ -171,7 +237,7 @@ export default function Register({ onClose }) {
             <button
               type="button"
               className="reg-link"
-              onClick={onClose}  /* nếu muốn, sau này bạn có thể gọi thêm mở LoginModal tại đây */
+              onClick={onClose} // sau này bạn có thể đóng + mở LoginModal luôn
             >
               Đăng nhập
             </button>

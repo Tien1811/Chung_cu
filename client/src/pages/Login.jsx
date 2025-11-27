@@ -1,15 +1,18 @@
 // src/components/Login.jsx
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import '../assets/style/pages/login.css'
 
 export default function Login({ onClose }) {
+  const location = useLocation()
+  const from = location.pathname + location.search
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Khóa scroll body khi mở 
+  // Khóa scroll body khi mở
   useEffect(() => {
     const old = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -19,7 +22,6 @@ export default function Login({ onClose }) {
   }, [])
 
   const handleOverlayClick = (e) => {
-    // click vùng tối bên ngoài => đóng
     if (e.target.classList.contains('login-overlay')) {
       onClose()
     }
@@ -37,10 +39,12 @@ export default function Login({ onClose }) {
     try {
       setLoading(true)
 
-      // TODO: thay bằng API login thật
       const res = await fetch('/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
         body: JSON.stringify({ email, password }),
       })
 
@@ -52,14 +56,26 @@ export default function Login({ onClose }) {
         data = null
       }
 
-      if (!res.ok) {
-        throw new Error(data?.message || 'Đăng nhập thất bại, vui lòng kiểm tra lại.')
+      if (!res.ok || data?.status === false) {
+        if (res.status === 422 && data?.errors) {
+          const firstError =
+            Object.values(data.errors)[0]?.[0] ||
+            'Lỗi xác thực dữ liệu.'
+          throw new Error(firstError)
+        }
+        throw new Error(
+          data?.message ||
+            'Đăng nhập thất bại, vui lòng kiểm tra lại.'
+        )
       }
 
-      console.log('Login success:', data)
-      // TODO: lưu token / user nếu cần
+      // Lưu token / user nếu cần
+      if (data?.access_token && data?.user) {
+        localStorage.setItem('access_token', data.access_token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+      }
 
-      onClose() // đăng nhập xong đóng popup
+      onClose()
     } catch (err) {
       console.error(err)
       setError(err.message || 'Có lỗi xảy ra, vui lòng thử lại.')
@@ -72,13 +88,12 @@ export default function Login({ onClose }) {
     <div className="login-overlay" onClick={handleOverlayClick}>
       <div className="login-overlay__inner">
         <section className="login-card">
-          {/* nút X */}
           <button
             type="button"
             className="login-close"
             onClick={onClose}
           >
-            x
+            ×
           </button>
 
           <h2>Đăng nhập</h2>
@@ -112,13 +127,16 @@ export default function Login({ onClose }) {
                 <input type="checkbox" />
                 <span>Ghi nhớ đăng nhập</span>
               </label>
-              <button
-                type="button"
+
+              {/* Quên mật khẩu: đóng popup + sang trang /forgot-password */}
+              <Link
+                to="/forgot-password"
+                state={{ from }}
                 className="login-link"
-                onClick={() => alert('Trang quên mật khẩu chưa làm 😆')}
+                onClick={onClose}
               >
                 Quên mật khẩu?
-              </button>
+              </Link>
             </div>
 
             {error && <p className="login-error">{error}</p>}

@@ -28,8 +28,10 @@ class ForgotPasswordController extends Controller
             ], 404);
         }
 
-        // Token 8 ký tự
-        $token = strtoupper(Str::random(8));
+
+        // Mã OTP 6 số
+        $token = random_int(100000, 999999);
+
 
         // Lưu hoặc cập nhật token + thời gian tạo
         DB::table('password_reset_tokens')->updateOrInsert(
@@ -54,16 +56,16 @@ class ForgotPasswordController extends Controller
     public function resetPassword(Request $request)
     {
         $validator = \Validator::make($request->all(), [
-            'email'         => 'required|email',
-            'token'         => 'required|string',
-            'new_password'  => 'required|string|min:6|confirmed',
+            'email' => 'required|email',
+            'token' => 'required|string',
+            'new_password' => 'required|string|min:6|confirmed',
         ], [
-            'email.required'        => 'Email không được để trống.',
-            'email.email'           => 'Email không đúng định dạng.',
-            'token.required'        => 'Mã token không được để trống.',
+            'email.required' => 'Email không được để trống.',
+            'email.email' => 'Email không đúng định dạng.',
+            'token.required' => 'Mã token không được để trống.',
             'new_password.required' => 'Mật khẩu mới không được để trống.',
-            'new_password.min'      => 'Mật khẩu mới phải ít nhất 6 ký tự.',
-            'new_password.confirmed'=> 'Xác nhận mật khẩu không khớp.'
+            'new_password.min' => 'Mật khẩu mới phải ít nhất 6 ký tự.',
+            'new_password.confirmed' => 'Xác nhận mật khẩu không khớp.'
         ]);
 
         if ($validator->fails()) {

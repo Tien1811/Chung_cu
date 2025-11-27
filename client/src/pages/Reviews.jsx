@@ -1,7 +1,12 @@
 // src/pages/PostReviewsPage.jsx
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import axios from 'axios'
 import '../assets/style/pages/review.css'
+
+// Lấy base URL từ .env (VITE_API_URL=http://127.0.0.1:8000/api)
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
 
 export default function PostReviewsPage() {
   const { id: postId } = useParams() // route: /posts/:id/reviews
@@ -17,7 +22,7 @@ export default function PostReviewsPage() {
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
 
-  // ==== load post + reviews ====
+  // ==== load post + reviews từ backend ====
   useEffect(() => {
     async function load() {
       try {
@@ -25,27 +30,34 @@ export default function PostReviewsPage() {
         setError('')
 
         const [postRes, reviewsRes] = await Promise.all([
-          fetch(`/api/posts/${postId}`),
-          fetch(`/api/posts/${postId}/reviews`),
+          axios.get(`${API_BASE_URL}/posts/${postId}`),
+          axios.get(`${API_BASE_URL}/posts/${postId}/reviews`),
         ])
 
-        if (!postRes.ok) throw new Error('Không tải được bài đăng')
-        if (!reviewsRes.ok) throw new Error('Không tải được đánh giá')
+        const postData = postRes.data
+        const reviewsData = reviewsRes.data
 
-        const postData = await postRes.json()
-        const reviewsData = await reviewsRes.json()
+        // linh hoạt theo cấu trúc JSON backend
+        setPost(postData.data || postData.post || postData)
 
-        setPost(postData.data || postData)        // tùy cấu trúc API
-        setReviews(reviewsData.data || reviewsData)
+        const list =
+          reviewsData.data ||
+          reviewsData.reviews ||
+          (Array.isArray(reviewsData) ? reviewsData : [])
+        setReviews(list)
       } catch (err) {
         console.error(err)
-        setError(err.message || 'Có lỗi xảy ra')
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            'Có lỗi xảy ra khi tải dữ liệu'
+        )
       } finally {
         setLoading(false)
       }
     }
 
-    load()
+    if (postId) load()
   }, [postId])
 
   // ==== tính tổng quan rating ====
@@ -77,13 +89,15 @@ export default function PostReviewsPage() {
     return (
       <span className="rv-stars">
         {Array.from({ length: 5 }, (_, i) => (
-          <span key={i} className={i < full ? 'is-on' : ''}>★</span>
+          <span key={i} className={i < full ? 'is-on' : ''}>
+            ★
+          </span>
         ))}
       </span>
     )
   }
 
-  // ==== submit review ====
+  // ==== submit review (POST /api/posts/:id/reviews) ====
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFormError('')
@@ -97,33 +111,37 @@ export default function PostReviewsPage() {
     try {
       setSubmitting(true)
 
-      const res = await fetch(`/api/posts/${postId}/reviews`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Authorization: `Bearer ${token}` // nếu dùng Sanctum/JWT thì thêm
-        },
-        body: JSON.stringify({
+      const res = await axios.post(
+        `${API_BASE_URL}/posts/${postId}/reviews`,
+        {
           rating,
           content,
-        }),
-      })
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            // Nếu có token:
+            // Authorization: `Bearer ${token}`
+          },
+          withCredentials: true, // nếu dùng Sanctum
+        }
+      )
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.message || 'Không gửi được đánh giá')
-      }
+      const payload = res.data
+      const newReview = payload.data || payload.review || payload
 
-      const newReview = await res.json()
-
-    
-      setReviews((prev) => [newReview.data || newReview, ...prev])
+      // Thêm review mới lên đầu danh sách
+      setReviews((prev) => [newReview, ...prev])
       setContent('')
       setRating(5)
       setFormSuccess('Cảm ơn bạn đã đánh giá!')
     } catch (err) {
       console.error(err)
-      setFormError(err.message || 'Có lỗi xảy ra khi gửi đánh giá')
+      setFormError(
+        err.response?.data?.message ||
+          err.message ||
+          'Có lỗi xảy ra khi gửi đánh giá'
+      )
     } finally {
       setSubmitting(false)
     }
@@ -152,14 +170,16 @@ export default function PostReviewsPage() {
       <header className="rv-header">
         <div>
           <p className="rv-breadcrumb">
-            <Link to="/" className="rv-link">Trang chủ</Link>
+            <Link to="/" className="rv-link">
+              Trang chủ
+            </Link>
             <span> / </span>
-            <Link to={`/posts/${postId}`} className="rv-link">Chi tiết phòng</Link>
+            <Link to={`/posts/${postId}`} className="rv-link">
+              Chi tiết phòng
+            </Link>
             <span> / Đánh giá</span>
           </p>
-          <h1 className="rv-title">
-            Đánh giá &amp; trải nghiệm
-          </h1>
+          <h1 className="rv-title">Đánh giá &amp; trải nghiệm</h1>
           {post && (
             <p className="rv-post-title">
               Cho bài đăng: <span>{post.title}</span>
@@ -201,8 +221,8 @@ export default function PostReviewsPage() {
               </div>
             </div>
             <p className="rv-summary-note">
-              Chỉ những khách đã từng thuê phòng mới có thể để lại đánh giá. Điều này
-              giúp bạn có cái nhìn thực tế và đáng tin cậy hơn.
+              Chỉ những khách đã từng thuê phòng mới có thể để lại đánh giá. Điều
+              này giúp bạn có cái nhìn thực tế và đáng tin cậy hơn.
             </p>
           </div>
 
@@ -210,8 +230,8 @@ export default function PostReviewsPage() {
           <div className="rv-list">
             {reviews.length === 0 && (
               <p className="rv-empty">
-                Chưa có đánh giá nào cho bài đăng này. Hãy là người đầu tiên chia sẻ
-                trải nghiệm của bạn!
+                Chưa có đánh giá nào cho bài đăng này. Hãy là người đầu tiên chia
+                sẻ trải nghiệm của bạn!
               </p>
             )}
 
@@ -227,13 +247,17 @@ export default function PostReviewsPage() {
                         {r.user?.name || 'Người dùng ẩn danh'}
                       </p>
                       <p className="rv-item-time">
-                        {new Date(r.created_at || Date.now()).toLocaleString('vi-VN')}
+                        {new Date(
+                          r.created_at || Date.now()
+                        ).toLocaleString('vi-VN')}
                       </p>
                     </div>
                   </div>
                   <div className="rv-item-rating">
                     {renderStars(r.rating)}
-                    <span className="rv-item-rating-number">{r.rating}/5</span>
+                    <span className="rv-item-rating-number">
+                      {r.rating}/5
+                    </span>
                   </div>
                 </header>
                 <p className="rv-item-content">{r.content}</p>
@@ -282,12 +306,16 @@ export default function PostReviewsPage() {
             {formError && <p className="rv-form-error">{formError}</p>}
             {formSuccess && <p className="rv-form-success">{formSuccess}</p>}
 
-            <button type="submit" className="rv-submit-btn" disabled={submitting}>
+            <button
+              type="submit"
+              className="rv-submit-btn"
+              disabled={submitting}
+            >
               {submitting ? 'Đang gửi...' : 'Gửi đánh giá'}
             </button>
             <p className="rv-form-hint">
-              Bằng việc gửi đánh giá, bạn đồng ý với quy định cộng đồng và điều khoản
-              sử dụng của hệ thống.
+              Bằng việc gửi đánh giá, bạn đồng ý với quy định cộng đồng và điều
+              khoản sử dụng của hệ thống.
             </p>
           </form>
         </aside>
