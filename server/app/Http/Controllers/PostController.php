@@ -85,7 +85,7 @@ class PostController extends Controller
                 'price' => $request->price,
                 'area' => $request->area,
                 'address' => $request->address,
-                // 'content' => $request->content,
+                'content' => $request->content,
                 'contact_phone' => $request->contact_phone,
                 'max_people' => $request->max_people,
                 'province_id' => $request->province_id,

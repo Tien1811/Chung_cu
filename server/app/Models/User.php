@@ -20,15 +20,6 @@ class User extends Authenticatable
         'password', 'remember_token',
     ];
 
-     protected $appends = ['avatar_url'];
-
-    public function getAvatarUrlAttribute()
-    {
-        return $this->avatar
-            ? asset('storage/' . $this->avatar)
-            : null;
-    }
-
     public function posts() {
         return $this->hasMany(Post::class);
     }

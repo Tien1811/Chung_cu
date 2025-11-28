@@ -10,6 +10,7 @@ return new class extends Migration {
             $table->id();
             $table->string('slug', 100)->unique();
             $table->string('name');
+            $table->timestamps();
         });
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\BlogPost;
 use Illuminate\Http\Request;
 
 class SearchController extends Controller
@@ -141,6 +142,35 @@ class SearchController extends Controller
             'status' => true,
             'data' => $similar
         ]);
+    }
+
+    // GET /api/blogs/search (tìm kiếm blog)
+    public function blogSearch(Request $request)
+    {
+        $keyword = trim($request->keyword);
+
+        if (!$keyword) {
+            return response()->json([
+                'message' => 'không tìm thấy blog này'
+            ], 422);
+        }
+
+        $blogs = BlogPost::with(['tags', 'images']) // bỏ 'user'
+            ->where(function ($query) use ($keyword) {
+                $query->where('title', 'LIKE', "%{$keyword}%")
+                    ->orWhere('content', 'LIKE', "%{$keyword}%")
+                    ->orWhere('excerpt', 'LIKE', "%{$keyword}%")
+                    ->orWhere('slug', 'LIKE', "%{$keyword}%")
+                    // Search by Tags
+                    ->orWhereHas('tags', function ($q) use ($keyword) {
+                        $q->where('name', 'LIKE', "%{$keyword}%")
+                            ->orWhere('slug', 'LIKE', "%{$keyword}%");
+                    });
+            })
+            ->latest()
+            ->paginate(10);
+
+        return response()->json($blogs);
     }
 
 

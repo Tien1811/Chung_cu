@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
-use App\Http\Controllers\BlogController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PostImageController;
 use App\Http\Controllers\CategoryController;
@@ -18,11 +17,14 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\LessorApplicationController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\BlogController;
+use App\Http\Controllers\BlogTagController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+Route::get('/blogs/search', [SearchController::class, 'blogSearch']);
 Route::get('/posts/search', [SearchController::class, 'search']);
 Route::get('/posts/{id}/similar', [SearchController::class, 'similarPosts']);
 
@@ -30,7 +32,9 @@ Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{id}', [PostController::class, 'show']);
 
 Route::get('/blogs', [BlogController::class, 'index']);
-Route::get('/blogs/{id}', [BlogController::class, 'show']);
+Route::get('/blogs/{slug}', [BlogController::class, 'show']);
+Route::get('/blog-tags', [BlogTagController::class, 'index']);
+Route::get('/blog-tags/{slug}', [BlogTagController::class, 'show']);
 
 Route::get('/provinces', [LocationController::class, 'getProvinces']);
 Route::get('/districts', [LocationController::class, 'getDistricts']);
@@ -136,11 +140,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/read-all', [NotificationsController::class, 'markAll']);
     Route::get('/notifications/unread-count', [NotificationsController::class, 'unreadCount']);
 
-    // Blogs (admin)
-    Route::post('/blogs', [BlogController::class, 'store']);
-    Route::put('/blogs/{id}', [BlogController::class, 'update']);
-    Route::delete('/blogs/{id}', [BlogController::class, 'destroy']);
-
     // Duyệt yêu cầu trở thành người cho thuê (user & admin)
     Route::post('/lessor/apply', [LessorApplicationController::class, 'apply']);
     Route::get('/lessor/my', [LessorApplicationController::class, 'myRequest']);
@@ -149,6 +148,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/lessor/reject/{id}', [LessorApplicationController::class, 'reject']);
     Route::delete('/admin/lessor/delete/{id}', [LessorApplicationController::class, 'delete']);
 
+    // Blogs (admin)
+    Route::post('/blogs', [BlogController::class, 'store']);
+    Route::post('/blogs/{post}/update', [BlogController::class, 'update']);
+    Route::delete('/blogs/{post}', [BlogController::class, 'destroy']);
+
+    // Blog Tags (admin)
+    Route::post('/blog-tags', [BlogTagController::class, 'store']);
+    Route::post('/blog-tags/{tag}/update', [BlogTagController::class, 'update']);
+    Route::delete('/blog-tags/{tag}', [BlogTagController::class, 'destroy']);
 });
 
 

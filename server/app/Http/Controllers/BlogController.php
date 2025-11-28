@@ -2,185 +2,169 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use App\Models\BlogPost;
+use App\Models\CloudinaryFile;
+use App\Services\CloudinaryService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
-use Exception;
 
 class BlogController extends Controller
 {
-    // GET /api/blogs - Lấy danh sách blog
+    protected $cloud;
+
+    public function __construct(CloudinaryService $cloud)
+    {
+        $this->cloud = $cloud;
+    }
+
+    private function adminOnly()
+    {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+    }
+
+    private function uniqueSlug($title)
+    {
+        $slug = Str::slug($title);
+        $base = $slug;
+        $i = 1;
+
+        while (DB::table('blog_posts')->where('slug', $slug)->exists()) {
+            $slug = $base . '-' . $i++;
+        }
+
+        return $slug;
+    }
+
+    // GET api/blogs (xem danh sách blog)
     public function index()
     {
-        try {
-            $blogs = BlogPost::orderBy('created_at', 'desc')->get();
-            return response()->json(['status' => true, 'data' => $blogs], 200);
-        } catch (Exception $e) {
-            Log::error('Lỗi lấy danh sách blog: '.$e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể tải danh sách blog.'], 500);
-        }
+        return BlogPost::with(['tags', 'images'])
+            ->orderBy('published_at', 'DESC')
+            ->paginate(10);
     }
 
-    // GET /api/blogs/{id} - Lấy chi tiết blog
-    public function show($id)
+    // GET api/blogs/{slug} (xem chi tiết blog)
+    public function show($slug)
     {
-        try {
-            $blog = BlogPost::find($id);
-            if (!$blog) {
-                return response()->json(['status' => false, 'message' => 'Không tìm thấy blog.'], 404);
-            }
-            return response()->json(['status' => true, 'data' => $blog], 200);
-        } catch (Exception $e) {
-            Log::error('Lỗi lấy chi tiết blog: '.$e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể tải chi tiết blog.'], 500);
-        }
+        return BlogPost::with(['tags', 'images'])
+            ->where('slug', $slug)
+            ->firstOrFail();
     }
 
-    // -------------------------
-    //  Helper kiểm tra quyền admin
-    // -------------------------
-    private function isAdmin()
-    {
-        return Auth::check() && Auth::user()->role === 'admin';
-    }
-
-    // POST /api/blogs - Thêm blog
+    // POST api/blogs (tạo blog mới)
     public function store(Request $request)
     {
-        if (!$this->isAdmin()) {
-            return response()->json(['status' => false, 'message' => 'Chỉ admin mới thêm blog.'], 403);
-        }
+        if ($r = $this->adminOnly()) return $r;
 
         $request->validate([
-            'title' => 'required|string|max:255',
-            'excerpt' => 'nullable|string|max:500',
-            'content' => 'required|string',
-            'cover' => 'nullable|string|max:255',
-            'published_at' => 'nullable|date'
+            'title' => 'required',
+            'content' => 'required',
+            'excerpt' => 'nullable',
+            'tags' => 'array',
+            'cover' => 'nullable|image|max:4096'
         ]);
 
-        try {
-            // Tạo slug
-            $slug = Str::slug($request->title);
-            
-            // Check slug trùng
-            if (BlogPost::where('slug', $slug)->exists()) {
-                $slug .= '-' . time();
-            }
+        $slug = $this->uniqueSlug($request->title);
 
-            $blog = BlogPost::create([
-                'title' => $request->title,
-                'slug' => $slug,
-                'excerpt' => $request->excerpt,
-                'content' => $request->content,
-                'cover' => $request->cover,
-                'published_at' => $request->published_at
-                    ? Carbon::parse($request->published_at)
-                    : now()
-            ]);
+        $post = BlogPost::create([
+            'title' => $request->title,
+            'slug' => $slug,
+            'excerpt' => $request->excerpt,
+            'content' => $request->content,
+            'published_at' => now()
+        ]);
 
-            return response()->json([
-                'status' => true,
-                'message' => 'Thêm blog thành công.',
-                'data' => $blog
-            ], 201);
-
-        } catch (Exception $e) {
-            Log::error('Lỗi thêm blog: '.$e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể thêm blog.'], 500);
+        if ($request->hasFile('cover')) {
+            $this->uploadImage($request->file('cover'), $post);
         }
+
+        if ($request->tags) {
+            $post->tags()->sync($request->tags);
+        }
+
+        return $post->load(['tags', 'images']);
     }
 
-    // PUT /api/blogs/{id} - Sửa blog
+    // POST api/blogs/{id}/update (cập nhật blog)
     public function update(Request $request, $id)
     {
-        if (!$this->isAdmin()) {
-            return response()->json(['status' => false, 'message' => 'Chỉ admin mới sửa blog.'], 403);
-        }
+        if ($r = $this->adminOnly()) return $r;
 
+        $post = BlogPost::findOrFail($id);
+
+        // Cho phép update từng field
         $request->validate([
-            'title' => 'nullable|string|max:255',
-            'excerpt' => 'nullable|string|max:500',
-            'content' => 'nullable|string',
-            'cover' => 'nullable|string|max:255',
-            'published_at' => 'nullable|date'
+            'title'   => 'sometimes|string',
+            'excerpt' => 'sometimes|nullable|string',
+            'content' => 'sometimes|string',
+            'tags'    => 'sometimes|array',
+            'cover'   => 'sometimes|image|max:4096'
         ]);
 
-        try {
-            $blog = BlogPost::find($id);
-            if (!$blog) {
-                return response()->json(['status' => false, 'message' => 'Không tìm thấy blog.'], 404);
-            }
-
-            $updateData = [];
-            
-            if ($request->filled('title')) {
-                $updateData['title'] = $request->title;
-                // Slug mới
-                $slug = Str::slug($request->title);
-                if (BlogPost::where('slug', $slug)->where('id', '!=', $id)->exists()) {
-                    $slug .= '-' . time();
-                }
-                $updateData['slug'] = $slug;
-            }
-
-            if ($request->filled('excerpt')) {
-                $updateData['excerpt'] = $request->excerpt;
-            }
-
-            if ($request->filled('content')) {
-                $updateData['content'] = $request->content;
-            }
-
-            if ($request->filled('cover')) {
-                $updateData['cover'] = $request->cover;
-            }
-
-            if ($request->filled('published_at')) {
-                $updateData['published_at'] = Carbon::parse($request->published_at);
-            }
-
-            $blog->update($updateData);
-
-            return response()->json([
-                'status' => true,
-                'message' => 'Cập nhật blog thành công.',
-                'data' => $blog
-            ], 200);
-
-        } catch (Exception $e) {
-            Log::error('Lỗi sửa blog: '.$e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể sửa blog.'], 500);
+        // Nếu có title → update slug nếu đổi
+        if ($request->filled('title') && $post->title !== $request->title) {
+            $post->slug = $this->uniqueSlug($request->title);
         }
+
+        // Update từng field (chỉ field được gửi)
+        $post->fill($request->only(['title', 'excerpt', 'content']));
+        $post->save();
+
+        // Nếu có ảnh mới
+        if ($request->hasFile('cover')) {
+            $this->deleteOldImages($post);
+            $this->uploadImage($request->file('cover'), $post);
+        }
+
+        // Nếu người dùng gửi tags[] thì mới update tags
+        if ($request->has('tags')) {
+            if ($request->tags) {
+                $post->tags()->sync($request->tags);
+            } else {
+                $post->tags()->detach();
+            }
+        }
+
+        return $post->load(['tags', 'images']);
     }
 
-    // DELETE /api/blogs/{id} - Xóa blog
+    // DELETE api/blogs/{id} (xóa blog)
     public function destroy($id)
     {
-        if (!$this->isAdmin()) {
-            return response()->json(['status' => false, 'message' => 'Chỉ admin mới xóa blog.'], 403);
-        }
+        if ($r = $this->adminOnly()) return $r;
 
-        try {
-            $blog = BlogPost::find($id);
-            if (!$blog) {
-                return response()->json(['status' => false, 'message' => 'Không tìm thấy blog.'], 404);
-            }
+        $post = BlogPost::findOrFail($id);
 
-            $blog->delete();
+        $this->deleteOldImages($post);
+        $post->tags()->detach();
+        $post->delete();
 
-            return response()->json([
-                'status' => true,
-                'message' => 'Xóa blog thành công.'
-            ], 200);
+        return ['message' => 'xóa Blog thành công'];
+    }
 
-        } catch (Exception $e) {
-            Log::error('Lỗi xóa blog: '.$e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể xóa blog.'], 500);
+
+    // Giúp hỗ trợ up ảnh lên Cloudinary và lưu vào DB
+    private function uploadImage($file, BlogPost $post)
+    {
+        $upload = $this->cloud->upload($file->getRealPath(), 'blog_images');
+
+        return CloudinaryFile::create([
+            'public_id'  => $upload['public_id'],
+            'url'        => $upload['secure_url'],
+            'type'       => 'blog_image',
+            'model_type' => BlogPost::class,
+            'model_id'   => $post->id
+        ]);
+    }
+
+    private function deleteOldImages(BlogPost $post)
+    {
+        foreach ($post->images as $img) {
+            $this->cloud->delete($img->public_id);
+            $img->delete();
         }
     }
 }
-
