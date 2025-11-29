@@ -132,7 +132,7 @@ class BlogController extends Controller
             }
 
             if ($request->filled('content')) {
-                $updateData['content'] = $request->content;
+                $updateData['content'] = $request->input(content);
             }
 
             if ($request->filled('cover')) {
