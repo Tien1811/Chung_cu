@@ -146,6 +146,11 @@ export default function UserSettingsModal({ user, onClose, onUpdated }) {
           }
           throw new Error(dataAvatar.message || 'Cập nhật avatar thất bại.')
         }
+        const userFromAvatar =
+          dataAvatar.user || dataAvatar.data || updatedUser
+
+        updatedUser = { ...updatedUser, ...userFromAvatar }
+        setAvatarPreview(userFromAvatar.avatar_url || avatarPreview)
 
         const avatarUrl =
           dataAvatar.avatar_url ||

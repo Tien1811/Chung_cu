@@ -4,13 +4,12 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import logo from '@/assets/images/logo.png'
 import Login from '../pages/Login'
 import Register from '../pages/Register'
-import UserSettingsModal from '../components/UserSettingsModal' // 🔹 popup cài đặt tài khoản
+import UserSettingsModal from '../components/UserSettingsModal'
 
 export default function Header() {
   const [showLogin, setShowLogin] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
-
-  const [showSettings, setShowSettings] = useState(false) // popup cài đặt tài khoản
+  const [showSettings, setShowSettings] = useState(false)
 
   const [user, setUser] = useState(null)
   const [indicatorStyle, setIndicatorStyle] = useState({})
@@ -24,14 +23,14 @@ export default function Header() {
   const navClass = ({ isActive }) =>
     'nav__link' + (isActive ? ' is-active' : '')
 
-  // ------- Hiệu ứng viên thuốc nav -------
+  // ===== Hiệu ứng viên thuốc nav =====
   useEffect(() => {
     const navEl = navRef.current
     if (!navEl) return
 
     const active = navEl.querySelector('.nav__link.is-active')
     if (!active) {
-      setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }))
+      setIndicatorStyle(prev => ({ ...prev, opacity: 0 }))
       return
     }
 
@@ -48,22 +47,64 @@ export default function Header() {
     })
   }, [location.pathname])
 
-  // ------- Đọc user từ localStorage + nghe auth:changed -------
+  // ===== Hàm lấy user từ API khi chỉ có token =====
+  const fetchUserFromApi = async token => {
+    try {
+      // Nếu backend bạn dùng /api/me thì đổi lại ở đây
+      const res = await fetch('/api/user', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      })
+
+      if (!res.ok) throw new Error('Không lấy được thông tin user')
+
+      const data = await res.json()
+      const u = data.user || data.data || data
+
+      setUser(u)
+      localStorage.setItem('auth_user', JSON.stringify(u))
+    } catch (e) {
+    console.error('Lỗi fetch user từ /api/user/profile:', e)
+      setUser(null)
+    }
+  }
+
+  // ===== Đọc user từ localStorage + fallback gọi /api/user nếu chỉ có token =====
   useEffect(() => {
-    const loadUser = () => {
+    const initAuth = () => {
       const raw = localStorage.getItem('auth_user')
-      setUser(raw ? JSON.parse(raw) : null)
+      const token = localStorage.getItem('access_token')
+
+      if (raw) {
+        try {
+          let parsed = JSON.parse(raw)
+          if (parsed && parsed.user) parsed = parsed.user // hỗ trợ kiểu {user:{...}}
+          setUser(parsed || null)
+          return
+        } catch (e) {
+          console.error('parse auth_user error', e)
+        }
+      }
+
+      // Không có auth_user nhưng có token -> gọi API lấy user
+      if (token) {
+        fetchUserFromApi(token)
+      } else {
+        setUser(null)
+      }
     }
 
-    loadUser()
-    window.addEventListener('auth:changed', loadUser)
-    return () => window.removeEventListener('auth:changed', loadUser)
+    initAuth()
+    window.addEventListener('auth:changed', initAuth)
+    return () => window.removeEventListener('auth:changed', initAuth)
   }, [])
 
-  // ------- Đóng dropdown khi click ngoài -------
+  // ===== Đóng dropdown khi click ngoài =====
   useEffect(() => {
     if (!menuOpen) return
-    const handleClick = (e) => {
+    const handleClick = e => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
         setMenuOpen(false)
       }
@@ -72,7 +113,7 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [menuOpen])
 
-  // ------- Logout -------
+  // ===== Logout =====
   const handleLogout = async () => {
     const token = localStorage.getItem('access_token')
 
@@ -101,8 +142,14 @@ export default function Header() {
     }
   }
 
-  // avatar: dùng ảnh nếu backend trả avatar_url, không thì lấy chữ cái đầu tên
-  const avatarUrl = user?.avatar_url || null
+  // ===== Avatar =====
+  const avatarUrl =
+    user?.avatar_url ||
+    user?.avatar ||
+    user?.avatarPath ||
+    user?.profile_photo_url ||
+    null
+
   const avatarChar = user?.name?.charAt(0)?.toUpperCase() || 'U'
 
   return (
@@ -115,16 +162,28 @@ export default function Header() {
 
           <nav className="nav" ref={navRef}>
             <span className="nav__indicator" style={indicatorStyle} />
-            <NavLink to="/phong-tro" className={navClass}>Phòng trọ</NavLink>
-            <NavLink to="/nha-nguyen-can" className={navClass}>Nhà nguyên căn</NavLink>
-            <NavLink to="/can-ho" className={navClass}>Căn hộ</NavLink>
-            <NavLink to="/ky-tuc-xa" className={navClass}>Ký túc xá</NavLink>
-            <NavLink to="/reviews" className={navClass}>Review</NavLink>
-            <NavLink to="/blog" className={navClass}>Blog</NavLink>
+            <NavLink to="/phong-tro" className={navClass}>
+              Phòng trọ
+            </NavLink>
+            <NavLink to="/nha-nguyen-can" className={navClass}>
+              Nhà nguyên căn
+            </NavLink>
+            <NavLink to="/can-ho" className={navClass}>
+              Căn hộ
+            </NavLink>
+            <NavLink to="/ky-tuc-xa" className={navClass}>
+              Ký túc xá
+            </NavLink>
+            <NavLink to="/reviews" className={navClass}>
+              Review
+            </NavLink>
+            <NavLink to="/blog" className={navClass}>
+              Blog
+            </NavLink>
           </nav>
 
           <div className="site-header__actions">
-            {/* CHƯA ĐĂNG NHẬP */}
+            {/* CHƯA ĐĂNG NHẬP -> hiện 2 nút */}
             {!user && (
               <>
                 <button
@@ -145,17 +204,13 @@ export default function Header() {
               </>
             )}
 
-            {/* ĐÃ ĐĂNG NHẬP */}
+            {/* ĐÃ ĐĂNG NHẬP -> chỉ hiện avatar + menu, 2 nút biến mất */}
             {user && (
-              <div
-                className="header-auth-user"
-                ref={userMenuRef}
-              >
-                {/* Avatar (nhấn để mở menu) */}
+              <div className="header-auth-user" ref={userMenuRef}>
                 <button
                   type="button"
                   className="header-avatar-btn"
-                  onClick={() => setMenuOpen((prev) => !prev)}
+                  onClick={() => setMenuOpen(prev => !prev)}
                 >
                   <div className="header-avatar">
                     {avatarUrl ? (
@@ -166,7 +221,6 @@ export default function Header() {
                   </div>
                 </button>
 
-                {/* Dropdown menu */}
                 {menuOpen && (
                   <div className="header-menu">
                     <div className="header-menu__top">
@@ -180,13 +234,14 @@ export default function Header() {
                       <div>
                         <p className="header-menu__name">{user.name}</p>
                         <p className="header-menu__role">
-                          {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
+                          {user.role === 'admin'
+                            ? 'Quản trị viên'
+                            : 'Người dùng'}
                         </p>
                       </div>
                     </div>
 
                     <div className="header-menu__list">
-                      {/* ➜ Cài đặt tài khoản: tên, email, SĐT, mật khẩu, avatar */}
                       <button
                         type="button"
                         className="header-menu__item"
@@ -198,7 +253,6 @@ export default function Header() {
                         Cài đặt tài khoản
                       </button>
 
-                      {/* Chỉ admin mới có nút vào khu quản trị */}
                       {user.role === 'admin' && (
                         <button
                           type="button"
@@ -229,15 +283,33 @@ export default function Header() {
       </header>
 
       {/* Popup login / register */}
-      {showLogin && <Login onClose={() => setShowLogin(false)} />}
-      {showRegister && <Register onClose={() => setShowRegister(false)} />}
+  {showLogin && (
+  <Login
+    onClose={() => setShowLogin(false)}
+    onSwitchToRegister={() => {
+      setShowLogin(false)
+      setShowRegister(true)
+    }}
+  />
+)}
+
+{showRegister && (
+  <Register
+    onClose={() => setShowRegister(false)}
+    onSwitchToLogin={() => {
+      setShowRegister(false)
+      setShowLogin(true)
+    }}
+  />
+)}
+
 
       {/* Popup cài đặt tài khoản */}
       {showSettings && user && (
         <UserSettingsModal
           user={user}
           onClose={() => setShowSettings(false)}
-          onUpdated={(u) => {
+          onUpdated={u => {
             setUser(u)
             localStorage.setItem('auth_user', JSON.stringify(u))
             window.dispatchEvent(new Event('auth:changed'))

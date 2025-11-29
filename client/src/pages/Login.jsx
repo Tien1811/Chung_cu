@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import '../assets/style/pages/login.css'
 
-export default function Login({ onClose }) {
+export default function Login({ onClose, onSwitchToRegister }) {
   const location = useLocation()
   const from = location.pathname + location.search
 
@@ -12,7 +12,6 @@ export default function Login({ onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Khóa scroll body khi mở
   useEffect(() => {
     const old = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -23,7 +22,7 @@ export default function Login({ onClose }) {
 
   const handleOverlayClick = (e) => {
     if (e.target.classList.contains('login-overlay')) {
-      onClose()
+      onClose && onClose()
     }
   }
 
@@ -59,23 +58,33 @@ export default function Login({ onClose }) {
       if (!res.ok || data?.status === false) {
         if (res.status === 422 && data?.errors) {
           const firstError =
-            Object.values(data.errors)[0]?.[0] ||
-            'Lỗi xác thực dữ liệu.'
+            Object.values(data.errors)[0]?.[0] || 'Lỗi xác thực dữ liệu.'
           throw new Error(firstError)
         }
         throw new Error(
-          data?.message ||
-            'Đăng nhập thất bại, vui lòng kiểm tra lại.'
+          data?.message || 'Đăng nhập thất bại, vui lòng kiểm tra lại.'
         )
       }
 
-      // Lưu token / user nếu cần
-      if (data?.access_token && data?.user) {
-        localStorage.setItem('access_token', data.access_token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-      }
+      const token =
+        data?.access_token ||
+        data?.token ||
+        data?.data?.access_token ||
+        data?.data?.token
 
-      onClose()
+      const user =
+        data?.user ||
+        data?.data?.user ||
+        data?.data ||
+        null
+
+      if (token) localStorage.setItem('access_token', token)
+      if (user) localStorage.setItem('auth_user', JSON.stringify(user))
+
+      window.dispatchEvent(new Event('auth:changed'))
+      localStorage.removeItem('user')
+
+      onClose && onClose()
     } catch (err) {
       console.error(err)
       setError(err.message || 'Có lỗi xảy ra, vui lòng thử lại.')
@@ -128,7 +137,6 @@ export default function Login({ onClose }) {
                 <span>Ghi nhớ đăng nhập</span>
               </label>
 
-              {/* Quên mật khẩu: đóng popup + sang trang /forgot-password */}
               <Link
                 to="/forgot-password"
                 state={{ from }}
@@ -152,13 +160,17 @@ export default function Login({ onClose }) {
 
           <p className="login-bottom">
             Chưa có tài khoản?{' '}
-            <Link
-              to="/register"
-              className="login-link"
-              onClick={onClose}
+            {/* ⚠️ KHÔNG ĐI TỚI /register NỮA */}
+            <button
+              type="button"
+              className="login-link login-link--button"
+              onClick={() => {
+                onClose && onClose()
+                onSwitchToRegister && onSwitchToRegister()
+              }}
             >
               Đăng ký ngay
-            </Link>
+            </button>
           </p>
         </section>
       </div>

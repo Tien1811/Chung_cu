@@ -30,7 +30,7 @@ export default function AdminPostCreate() {
   const [selectedAmenities, setSelectedAmenities] = useState([])      // [id,...]
   const [selectedEnvFeatures, setSelectedEnvFeatures] = useState([]) // [id,...]
 
-  const [images, setImages] = useState([])       // File[]
+  const [images, setImages] = useState([])              // File[]
   const [imagePreviews, setImagePreviews] = useState([]) // URL[]
 
   const [loading, setLoading] = useState(false)
@@ -45,11 +45,6 @@ export default function AdminPostCreate() {
         setLoading(true)
         setError('')
 
-        // ⚙️ KẾT NỐI BACKEND HIỆN TẠI CỦA BẠN:
-        // GET /api/categories                -> CategoryController@index
-        // GET /api/amenities                 -> AmenityController@index
-        // GET /api/environment-features      -> EnvironmentFeatureController@index
-        // GET /api/provinces                 -> LocationController@getProvinces
         const [catRes, ameRes, envRes, provRes] = await Promise.all([
           fetch('/api/categories'),
           fetch('/api/amenities'),
@@ -85,18 +80,17 @@ export default function AdminPostCreate() {
     if (!provinceId) {
       setDistricts([])
       setWards([])
-      setForm((f) => ({ ...f, district_id: '', ward_id: '' }))
+      setForm(f => ({ ...f, district_id: '', ward_id: '' }))
       return
     }
 
     async function loadDistricts() {
       try {
-        // GET /api/districts?province_id=xx -> LocationController@getDistricts
         const res = await fetch(`/api/districts?province_id=${provinceId}`)
         const json = await res.json()
         setDistricts(json.data || json || [])
         setWards([])
-        setForm((f) => ({ ...f, district_id: '', ward_id: '' }))
+        setForm(f => ({ ...f, district_id: '', ward_id: '' }))
       } catch (err) {
         console.error(err)
       }
@@ -110,17 +104,16 @@ export default function AdminPostCreate() {
     const districtId = form.district_id
     if (!districtId) {
       setWards([])
-      setForm((f) => ({ ...f, ward_id: '' }))
+      setForm(f => ({ ...f, ward_id: '' }))
       return
     }
 
     async function loadWards() {
       try {
-        // GET /api/wards?district_id=xx -> LocationController@getWards
         const res = await fetch(`/api/wards?district_id=${districtId}`)
         const json = await res.json()
         setWards(json.data || json || [])
-        setForm((f) => ({ ...f, ward_id: '' }))
+        setForm(f => ({ ...f, ward_id: '' }))
       } catch (err) {
         console.error(err)
       }
@@ -130,31 +123,31 @@ export default function AdminPostCreate() {
   }, [form.district_id])
 
   // ===== HANDLERS =====
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    setForm(prev => ({ ...prev, [name]: value }))
   }
 
-  const toggleAmenity = (id) => {
-    setSelectedAmenities((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  const toggleAmenity = id => {
+    setSelectedAmenities(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     )
   }
 
-  const toggleEnvFeature = (id) => {
-    setSelectedEnvFeatures((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  const toggleEnvFeature = id => {
+    setSelectedEnvFeatures(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     )
   }
 
-  const handleImagesChange = (e) => {
+  const handleImagesChange = e => {
     const files = Array.from(e.target.files || [])
     setImages(files)
-    setImagePreviews(files.map((f) => URL.createObjectURL(f)))
+    setImagePreviews(files.map(f => URL.createObjectURL(f)))
   }
 
   // ===== SUBMIT TẠO BÀI =====
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -197,28 +190,24 @@ export default function AdminPostCreate() {
       fd.append('province_id', form.province_id)
       fd.append('district_id', form.district_id)
       fd.append('ward_id', form.ward_id)
-      fd.append('status', form.status) // nếu backend chưa dùng có thể bỏ
+      fd.append('status', form.status) // draft | published
       fd.append('content', form.content)
 
-      // mảng tiện ích
-      selectedAmenities.forEach((id) => {
-        fd.append('amenities[]', id)
+      // mảng tiện ích -> amenities[0], amenities[1] ...
+      selectedAmenities.forEach((id, index) => {
+        fd.append(`amenities[${index}]`, id)
       })
 
-      // mảng environment_features
-      selectedEnvFeatures.forEach((id) => {
-        fd.append('environment_features[]', id)
+      // mảng environment_features -> environment_features[0]...
+      selectedEnvFeatures.forEach((id, index) => {
+        fd.append(`environment_features[${index}]`, id)
       })
 
-      // ảnh
-      images.forEach((file) => {
-        fd.append('images[]', file)
+      // ảnh -> images[0], images[1]...
+      images.forEach((file, index) => {
+        fd.append(`images[${index}]`, file)
       })
 
-      /**
-       * KẾT NỐI BACKEND HIỆN TẠI:
-       *  POST /api/posts  -> PostController@store
-       */
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: {
@@ -238,10 +227,19 @@ export default function AdminPostCreate() {
       }
 
       if (!res.ok || data.status === false) {
+        // Ưu tiên lỗi validate 422
         if (res.status === 422 && data.errors) {
           const firstError =
             Object.values(data.errors)[0]?.[0] || 'Lỗi xác thực dữ liệu.'
           throw new Error(firstError)
+        }
+
+        if (res.status === 401) {
+          throw new Error('Bạn chưa đăng nhập hoặc phiên đã hết hạn.')
+        }
+
+        if (res.status === 403) {
+          throw new Error('Bạn không có quyền đăng bài.')
         }
 
         throw new Error(data.message || 'Không tạo được bài đăng.')
@@ -303,7 +301,7 @@ export default function AdminPostCreate() {
                   onChange={handleChange}
                 >
                   <option value="">-- Chọn danh mục --</option>
-                  {categories.map((c) => (
+                  {categories.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -384,7 +382,7 @@ export default function AdminPostCreate() {
                   onChange={handleChange}
                 >
                   <option value="">-- Chọn tỉnh/thành --</option>
-                  {provinces.map((p) => (
+                  {provinces.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
@@ -404,7 +402,7 @@ export default function AdminPostCreate() {
                   disabled={!districts.length}
                 >
                   <option value="">-- Chọn quận/huyện --</option>
-                  {districts.map((d) => (
+                  {districts.map(d => (
                     <option key={d.id} value={d.id}>
                       {d.name}
                     </option>
@@ -424,7 +422,7 @@ export default function AdminPostCreate() {
                   disabled={!wards.length}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {wards.map((w) => (
+                  {wards.map(w => (
                     <option key={w.id} value={w.id}>
                       {w.name}
                     </option>
@@ -456,7 +454,7 @@ export default function AdminPostCreate() {
             <div className="admin-form__col">
               <h3 className="admin-subtitle">Tiện ích trong phòng</h3>
               <div className="admin-chip-list">
-                {amenities.map((a) => (
+                {amenities.map(a => (
                   <label key={a.id} className="admin-chip-input">
                     <input
                       type="checkbox"
@@ -467,7 +465,9 @@ export default function AdminPostCreate() {
                   </label>
                 ))}
                 {amenities.length === 0 && (
-                  <p className="admin-note">Chưa có tiện ích nào, hãy thêm ở mục Tiện ích.</p>
+                  <p className="admin-note">
+                    Chưa có tiện ích nào, hãy thêm ở mục Tiện ích.
+                  </p>
                 )}
               </div>
             </div>
@@ -478,7 +478,7 @@ export default function AdminPostCreate() {
             <div className="admin-form__col">
               <h3 className="admin-subtitle">Môi trường xung quanh</h3>
               <div className="admin-chip-list">
-                {envFeatures.map((e) => (
+                {envFeatures.map(e => (
                   <label key={e.id} className="admin-chip-input">
                     <input
                       type="checkbox"
@@ -490,7 +490,8 @@ export default function AdminPostCreate() {
                 ))}
                 {envFeatures.length === 0 && (
                   <p className="admin-note">
-                    Chưa có yếu tố môi trường nào, hãy thêm ở mục Môi trường xung quanh.
+                    Chưa có yếu tố môi trường nào, hãy thêm ở mục Môi trường
+                    xung quanh.
                   </p>
                 )}
               </div>
@@ -514,7 +515,10 @@ export default function AdminPostCreate() {
               {imagePreviews.length > 0 && (
                 <div className="admin-upload-preview">
                   {imagePreviews.map((src, idx) => (
-                    <div key={idx} className="admin-upload-preview__item">
+                    <div
+                      key={idx}
+                      className="admin-upload-preview__item"
+                    >
                       <img src={src} alt={`preview-${idx}`} />
                     </div>
                   ))}

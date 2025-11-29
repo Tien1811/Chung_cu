@@ -83,7 +83,7 @@ class AuthController extends Controller
                 'message' => 'Email hoặc mật khẩu không đúng',
             ], 401);
         }
-
+ $user->load('avatarFile');
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

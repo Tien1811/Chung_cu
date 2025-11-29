@@ -445,3 +445,11 @@
   background: linear-gradient(135deg, #38bdf8, #22c55e);
   color: #0f172a;
 }
+.login-link--button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}

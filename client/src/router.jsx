@@ -10,8 +10,8 @@ import Apartments from './pages/Apartments.jsx'
 import Dorms from './pages/Dorms.jsx'
 import Reviews from './pages/Reviews.jsx'
 import Blog from './pages/Blog.jsx'
-import Login from './pages/Login.jsx'
-import Register from './pages/Register.jsx'
+// import Login from './pages/Login.jsx'
+// import Register from './pages/Register.jsx'
 import Homes from './pages/Homes.jsx'
 import PostDetail from './pages/postDetail.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
@@ -59,8 +59,8 @@ export const router = createBrowserRouter([
       { path: '/blog', element: <Blog /> },
 
       // login/register nếu đang dùng popup thì sau bỏ cũng được
-      { path: '/login', element: <Login /> },
-      { path: '/register', element: <Register /> },
+      // { path: '/login', element: <Login /> },
+      // { path: '/register', element: <Register /> },
       { path: '/forgot-password', element: <ForgotPassword /> },
       { path: '/reset-password', element: <ResetPassword /> },
       { path: '/post/:id', element: <PostDetail /> },

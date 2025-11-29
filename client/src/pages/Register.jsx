@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import '../assets/style/pages/register.css'
 
-export default function Register({ onClose }) {
+export default function Register({ onClose , onSwitchToLogin }) {
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -232,16 +232,19 @@ export default function Register({ onClose }) {
             </button>
           </form>
 
-          <p className="reg-bottom">
-            Đã có tài khoản?{' '}
-            <button
-              type="button"
-              className="reg-link"
-              onClick={onClose} // sau này bạn có thể đóng + mở LoginModal luôn
-            >
-              Đăng nhập
-            </button>
-          </p>
+       <p className="reg-bottom">
+    Đã có tài khoản?{' '}
+    <button
+      type="button"
+      className="reg-link"
+      onClick={() => {
+        onClose && onClose()
+        onSwitchToLogin && onSwitchToLogin()
+      }}
+    >
+      Đăng nhập
+    </button>
+  </p>
         </section>
       </div>
     </div>
