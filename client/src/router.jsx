@@ -55,7 +55,7 @@ export const router = createBrowserRouter([
       { path: '/nha-nguyen-can', element: <Houses /> },
       { path: '/can-ho', element: <Apartments /> },
       { path: '/ky-tuc-xa', element: <Dorms /> },
-      { path: '/reviews', element: <Reviews /> },
+      { path: '/reviews', element: <Reviews /> },  
       { path: '/blog', element: <Blog /> },
 
       // login/register nếu đang dùng popup thì sau bỏ cũng được

@@ -128,9 +128,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/saved-posts/{postId}', [SavedPostController::class, 'unsave']);
 
     // Reviews (all)
-    Route::post('/posts/{postId}/reviews', [ReviewController::class, 'store']);
-    Route::put('/reviews/{id}', [ReviewController::class, 'update']);
-    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+  Route::get('/reviews', [ReviewController::class, 'all'])
+    ->withoutMiddleware('auth:sanctum');
+
+Route::get('/posts/{post}/reviews', [ReviewController::class, 'index'])
+    ->withoutMiddleware('auth:sanctum');
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/posts/{post}/reviews', [ReviewController::class, 'store']);
+        Route::put('/reviews/{id}', [ReviewController::class, 'update']);
+        Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+    });
+
 
     // Appointments (admin & lessor/ get all)
     Route::post('/appointments', [AppointmentController::class, 'store']);

@@ -73,7 +73,7 @@ class BlogController extends Controller
             'title' => $request->title,
             'slug' => $slug,
             'excerpt' => $request->excerpt,
-            'content' => $request->content,
+            'content' => $request->input('content'),
             'published_at' => now()
         ]);
 

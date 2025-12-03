@@ -466,3 +466,99 @@
     margin-top: 4px;
   }
 }
+/* Avatar chủ nhà */
+.pd-host__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+}
+.pd-host__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+/* Gallery cuộn ngang */
+.pd-gallery {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+}
+.pd-gallery__item {
+  flex: 0 0 auto;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: #020617;
+  padding: 0;
+}
+.pd-gallery__item img {
+  display: block;
+  width: 140px;
+  height: 90px;
+  object-fit: cover;
+}
+
+/* Nút gọi điện hiển thị SĐT */
+.pd-btn-call {
+  position: relative;
+}
+.pd-contact__phone {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+/* Avatar trong review */
+.pd-review-item__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+.pd-review-item__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+/* Pagination review 1 2 3 */
+.pd-reviews__pagination {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.pd-page-btn {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  background: rgba(15, 23, 42, 0.95);
+  color: #e5e7eb;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pd-page-btn.is-active {
+  background: #38bdf8;
+  border-color: #38bdf8;
+  color: #0f172a;
+}
+

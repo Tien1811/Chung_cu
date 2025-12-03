@@ -3,31 +3,72 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import '../assets/style/pages/post-detail.css'
 
+// DÙNG CHUNG CHO MỌI ẢNH: string, CloudinaryFile, PostImage + file
+ 
+function normalizeImageUrl(source) {
+  if (!source) return ''
+  if (typeof source === 'string') return source
+
+  if (source.full_url) return source.full_url
+  if (source.fullUrl) return source.fullUrl
+
+  if (source.url) return source.url
+  if (source.secure_url) return source.secure_url
+
+  if (source.file) {
+    if (source.file.url) return source.file.url
+    if (source.file.secure_url) return source.file.secure_url
+  }
+
+  if (source.image_url) return source.image_url
+  if (source.path) return source.path
+
+  return ''
+}
+
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+
 export default function PostDetail() {
   const { id } = useParams()
   const [post, setPost] = useState(null)
+  const [postImages, setPostImages] = useState([]) // ẢNH LẤY TỪ /posts/{id}/images
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // state cho form đánh giá
+  // form đánh giá
   const [ratingInput, setRatingInput] = useState(5)
   const [contentInput, setContentInput] = useState('')
   const [imageFiles, setImageFiles] = useState([])
   const [reviewError, setReviewError] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
 
+  // hiển thị SĐT khi hover nút gọi
+  const [showPhone, setShowPhone] = useState(false)
+
+  // phân trang review (3 cái / trang)
+  const [reviewPage, setReviewPage] = useState(1)
+  const REVIEWS_PER_PAGE = 3
+
+  // LOAD CHI TIẾT BÀI
   useEffect(() => {
     async function load() {
       try {
         setLoading(true)
         setError('')
 
-        const res = await fetch(`/api/posts/${id}`)
+        const res = await fetch(`${API_BASE_URL}/posts/${id}`)
 
         if (!res.ok) throw new Error('Không tải được thông tin bài đăng.')
 
         const data = await res.json()
+        console.log('POST DETAIL RESPONSE =', data)
         setPost(data.data || data)
+
+        // đổi bài thì quay về page 1 review
+        setReviewPage(1)
       } catch (err) {
         console.error(err)
         setError(err.message || 'Có lỗi xảy ra, vui lòng thử lại.')
@@ -39,13 +80,79 @@ export default function PostDetail() {
     load()
   }, [id])
 
-  // ====== một số dữ liệu hiển thị mềm dẻo ======
-  const mainImage = useMemo(() => {
-    if (!post) return ''
-    if (post.cover_image) return post.cover_image
-    if (post.images && post.images.length > 0) return post.images[0].url
-    return 'https://via.placeholder.com/1200x600?text=Apartment'
-  }, [post])
+  // LOAD DANH SÁCH ẢNH RIÊNG (API /posts/{id}/images)
+  useEffect(() => {
+    async function loadImages() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/posts/${id}/images`)
+        if (!res.ok) {
+          console.error('Không tải được danh sách ảnh của bài.', res.status)
+          return
+        }
+
+        const data = await res.json()
+        console.log('POST IMAGES RESPONSE =', data)
+        setPostImages(data.data || data)
+      } catch (err) {
+        console.error('Lỗi khi tải ảnh bài viết:', err)
+      }
+    }
+
+    loadImages()
+  }, [id])
+
+  // ====== dữ liệu hiển thị mềm dẻo ======
+const mainImage = useMemo(() => {
+  if (!post) return ''
+
+  // 0. Nếu đã chọn từ gallery thì ưu tiên
+  if (post.cover_image) {
+    const coverUrl = normalizeImageUrl(post.cover_image)
+    if (coverUrl) return coverUrl
+  }
+
+  // 1. Dùng main_image_url backend trả ra
+  if (post.main_image_url) {
+    const mainUrl = normalizeImageUrl(post.main_image_url)
+    if (mainUrl) return mainUrl
+  }
+
+  // 2. thumbnail_url (đã chuẩn hoá ở BE)
+  if (post.thumbnail_url) {
+    const thumbUrl = normalizeImageUrl(post.thumbnail_url)
+    if (thumbUrl) return thumbUrl
+  }
+
+  // 3. thumbnail quan hệ
+  if (post.thumbnail) {
+    const thumbUrl = normalizeImageUrl(post.thumbnail)
+    if (thumbUrl) return thumbUrl
+  }
+
+  // 4. Ảnh đầu tiên trong quan hệ images
+  if (post.images && post.images.length > 0) {
+    const firstUrl = normalizeImageUrl(post.images[0])
+    if (firstUrl) return firstUrl
+  }
+
+  // 5. Fallback sang postImages (API /posts/{id}/images)
+  if (postImages && postImages.length > 0) {
+    const firstUrl = normalizeImageUrl(postImages[0])
+    if (firstUrl) return firstUrl
+  }
+
+  // 6. Cuối cùng mới dùng placeholder
+  return 'https://via.placeholder.com/1200x600?text=Apartment'
+}, [post, postImages])
+
+
+  // LIST ẢNH ĐỂ DÙNG CHO GALLERY (ưu tiên post.images, nếu trống thì dùng postImages)
+  const galleryImages = useMemo(() => {
+    if (post?.images && post.images.length > 0) {
+      return post.images
+    }
+    return postImages
+  }, [post, postImages])
 
   const locationText = useMemo(() => {
     if (!post) return ''
@@ -81,15 +188,44 @@ export default function PostDetail() {
   const amenities = post?.amenities || []
   const envFeatures = post?.environment_features || []
 
-  // chỉ hiển thị tối đa 3 đánh giá gần nhất
-  const recentReviews = ratingList.slice(0, 3)
+  // avatar & phone chủ nhà (từ user của bài đăng)
+  const hostAvatarUrl =
+    post?.user?.avatar_url ||
+    post?.user?.avatar ||
+    post?.user?.avatar_path ||
+    post?.user?.profile_photo_url ||
+    ''
+
+  const hostPhone =
+    post?.contact_phone || // ƯU TIÊN số điện thoại riêng của bài
+    post?.user?.phone ||
+    post?.user?.phone_number ||
+    post?.user?.tel ||
+    ''
+
+  // phân trang review (mỗi trang 3 cái)
+  const totalReviewPages = useMemo(
+    () =>
+      ratingList.length
+        ? Math.ceil(ratingList.length / REVIEWS_PER_PAGE)
+        : 1,
+    [ratingList.length]
+  )
+
+  const pagedReviews = useMemo(() => {
+    if (!ratingList.length) return []
+    const start = (reviewPage - 1) * REVIEWS_PER_PAGE
+    return ratingList.slice(start, start + REVIEWS_PER_PAGE)
+  }, [ratingList, reviewPage])
 
   const renderStars = (value) => {
     const full = Math.round(value || 0)
     return (
       <span className="pd-stars">
         {Array.from({ length: 5 }, (_, i) => (
-          <span key={i} className={i < full ? 'is-on' : ''}>★</span>
+          <span key={i} className={i < full ? 'is-on' : ''}>
+            ★
+          </span>
         ))}
       </span>
     )
@@ -132,7 +268,7 @@ export default function PostDetail() {
         formData.append('images[]', file)
       })
 
-      const res = await fetch(`/api/posts/${id}/reviews`, {
+      const res = await fetch(`${API_BASE_URL}/posts/${id}/reviews`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -169,6 +305,7 @@ export default function PostDetail() {
       setRatingInput(5)
       setContentInput('')
       setImageFiles([])
+      setReviewPage(1)
     } catch (err) {
       console.error(err)
       setReviewError(err.message || 'Có lỗi khi gửi đánh giá.')
@@ -176,6 +313,13 @@ export default function PostDetail() {
       setSubmittingReview(false)
     }
   }
+
+  // ===== DEBUG LOG MỖI LẦN RENDER =====
+  console.log('DEBUG mainImage =', mainImage)
+  console.log('DEBUG post =', post)
+  console.log('DEBUG post.images =', post?.images)
+  console.log('DEBUG postImages =', postImages)
+  console.log('DEBUG post.thumbnail =', post?.thumbnail)
 
   if (loading) {
     return (
@@ -189,16 +333,27 @@ export default function PostDetail() {
     return (
       <main className="container container--main pd-page">
         <p className="pd-error">{error || 'Không tìm thấy bài đăng.'}</p>
-        <Link to="/" className="pd-link-back">← Quay về trang chủ</Link>
+        <Link to="/" className="pd-link-back">
+          ← Quay về trang chủ
+        </Link>
       </main>
     )
   }
 
   return (
     <main className="container container--main pd-page">
+      {/* DEBUG URL ẢNH CHÍNH */}
+      <div style={{ color: 'red', fontSize: 12, marginBottom: 8 }}>
+        mainImage: {mainImage || '(rỗng)'}
+      </div>
+
       {/* HERO ẢNH LỚN */}
       <section className="pd-hero">
-        <img src={mainImage} alt={post.title} className="pd-hero__img" />
+        <img
+          src={mainImage}
+          alt={post.title}
+          className="pd-hero__img"
+        />
         <div className="pd-hero__overlay" />
         <div className="pd-hero__content">
           <p className="pd-hero__topline">
@@ -232,10 +387,7 @@ export default function PostDetail() {
                   <span className="pd-rating__count">
                     ({ratingCount} đánh giá)
                   </span>
-                  <Link
-                    to={`/posts/${post.id}/reviews`}
-                    className="pd-link"
-                  >
+                  <Link to={`/posts/{post.id}/reviews`} className="pd-link">
                     Xem chi tiết đánh giá
                   </Link>
                 </>
@@ -254,24 +406,28 @@ export default function PostDetail() {
       <section className="pd-layout">
         {/* CỘT TRÁI: THÔNG TIN CHÍNH */}
         <div className="pd-main">
-          {/* GALERY NHỎ */}
-          {post.images && post.images.length > 1 && (
+          {/* GALLERY NHỎ CUỘN NGANG */}
+          {galleryImages && galleryImages.length > 1 && (
             <div className="pd-gallery">
-              {post.images.slice(0, 4).map((img) => (
-                <button
-                  key={img.id}
-                  type="button"
-                  className="pd-gallery__item"
-                  onClick={() => {
-                    setPost((prev) => ({
-                      ...prev,
-                      cover_image: img.url,
-                    }))
-                  }}
-                >
-                  <img src={img.url} alt={post.title} />
-                </button>
-              ))}
+              {galleryImages.map((img) => {
+                const imgUrl = normalizeImageUrl(img)
+                if (!imgUrl) return null
+                return (
+                  <button
+                    key={img.id || img.full_url || img.url}
+                    type="button"
+                    className="pd-gallery__item"
+                    onClick={() => {
+                      setPost((prev) => ({
+                        ...prev,
+                        cover_image: imgUrl,
+                      }))
+                    }}
+                  >
+                    <img src={imgUrl} alt={post.title} />
+                  </button>
+                )
+              })}
             </div>
           )}
 
@@ -313,7 +469,9 @@ export default function PostDetail() {
           {/* TIỆN ÍCH */}
           {amenities.length > 0 && (
             <article className="pd-card">
-              <h2 className="pd-card__title">Tiện ích trong phòng / căn hộ</h2>
+              <h2 className="pd-card__title">
+                Tiện ích trong phòng / căn hộ
+              </h2>
               <div className="pd-tags">
                 {amenities.map((a) => (
                   <span key={a.id} className="pd-tag">
@@ -344,7 +502,14 @@ export default function PostDetail() {
 
             <div className="pd-host">
               <div className="pd-host__avatar">
-                {(post.user?.name || 'U').charAt(0).toUpperCase()}
+                {hostAvatarUrl ? (
+                  <img
+                    src={hostAvatarUrl}
+                    alt={post.user?.name || 'Chủ nhà'}
+                  />
+                ) : (
+                  (post.user?.name || 'U').charAt(0).toUpperCase()
+                )}
               </div>
               <div>
                 <p className="pd-host__name">
@@ -356,9 +521,33 @@ export default function PostDetail() {
               </div>
             </div>
 
-            <button type="button" className="pd-btn pd-btn--primary">
-              Gọi điện cho chủ nhà
+            <button
+              type="button"
+              className="pd-btn pd-btn--primary pd-btn-call"
+              onMouseEnter={() => setShowPhone(true)}
+              onMouseLeave={() => setShowPhone(false)}
+              onClick={() => {
+                if (!hostPhone) {
+                  alert(
+                    'Chưa có số điện thoại của chủ nhà trong dữ liệu API.'
+                  )
+                  return
+                }
+                window.location.href = `tel:${hostPhone}`
+              }}
+            >
+              {hostPhone
+                ? showPhone
+                  ? `Gọi: ${hostPhone}`
+                  : 'Gọi điện cho chủ nhà'
+                : 'Chưa có SĐT'}
             </button>
+            {hostPhone && showPhone && (
+              <p className="pd-contact__phone">
+                SĐT: <strong>{hostPhone}</strong>
+              </p>
+            )}
+
             <button type="button" className="pd-btn pd-btn--ghost">
               Nhắn tin (Zalo / Messenger)
             </button>
@@ -388,7 +577,7 @@ export default function PostDetail() {
         <article className="pd-card pd-reviews pd-reviews--full">
           <h2 className="pd-card__title">Đánh giá & bình luận</h2>
 
-          {/* TÓM TẮT + XEM THÊM */}
+          {/* TÓM TẮT */}
           <div className="pd-reviews__summary">
             <div>
               {ratingCount > 0 ? (
@@ -407,58 +596,89 @@ export default function PostDetail() {
                 </span>
               )}
             </div>
-
-            {ratingCount > 3 && (
-              <Link
-                to={`/posts/${post.id}/reviews`}
-                className="pd-reviews__more"
-              >
-                Xem tất cả {ratingCount} đánh giá →
-              </Link>
-            )}
           </div>
 
-          {/* LIST 3 ĐÁNH GIÁ GẦN NHẤT */}
-          {recentReviews.length > 0 && (
+          {/* LIST REVIEW: tối đa 3 / 1 trang */}
+          {pagedReviews.length > 0 && (
             <div className="pd-reviews__list">
-              {recentReviews.map((rv) => (
-                <div key={rv.id} className="pd-review-item">
-                  <div className="pd-review-item__head">
-                    <div className="pd-review-item__avatar">
-                      {(rv.user?.name || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="pd-review-item__name">
-                        {rv.user?.name || 'Người dùng'}
-                      </p>
-                      <div className="pd-review-item__meta">
-                        {renderStars(rv.rating)}
-                        {rv.created_at && (
-                          <span>
-                            {new Date(rv.created_at).toLocaleString('vi-VN')}
-                          </span>
+              {pagedReviews.map((rv) => {
+                const avatarUrl =
+                  rv.user?.avatar_url ||
+                  rv.user?.avatar ||
+                  rv.user?.avatar_path ||
+                  ''
+                return (
+                  <div key={rv.id} className="pd-review-item">
+                    <div className="pd-review-item__head">
+                      <div className="pd-review-item__avatar">
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={rv.user?.name || 'Người dùng'}
+                          />
+                        ) : (
+                          (rv.user?.name || 'U').charAt(0).toUpperCase()
                         )}
                       </div>
+                      <div>
+                        <p className="pd-review-item__name">
+                          {rv.user?.name || 'Người dùng'}
+                        </p>
+                        <div className="pd-review-item__meta">
+                          {renderStars(rv.rating)}
+                          {rv.created_at && (
+                            <span>
+                              {new Date(
+                                rv.created_at
+                              ).toLocaleString('vi-VN')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
+
+                    {rv.content && (
+                      <p className="pd-review-item__content">
+                        {rv.content}
+                      </p>
+                    )}
+
+                    {/* Block ảnh review nếu sau này có */}
+                    {rv.images && rv.images.length > 0 && (
+                      <div className="pd-review-item__images">
+                        {rv.images.slice(0, 3).map((img) => (
+                          <img
+                            key={img.id || img.url}
+                            src={normalizeImageUrl(img)}
+                            alt="review"
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
+                )
+              })}
+            </div>
+          )}
 
-                  {rv.content && (
-                    <p className="pd-review-item__content">{rv.content}</p>
-                  )}
-
-                  {rv.images && rv.images.length > 0 && (
-                    <div className="pd-review-item__images">
-                      {rv.images.slice(0, 3).map((img) => (
-                        <img
-                          key={img.id || img.url}
-                          src={img.url}
-                          alt="review"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+          {/* PAGINATION nhỏ 1 2 3 phía dưới */}
+          {totalReviewPages > 1 && (
+            <div className="pd-reviews__pagination">
+              {Array.from({ length: totalReviewPages }, (_, idx) => idx + 1).map(
+                (pageNum) => (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    className={
+                      'pd-page-btn' +
+                      (pageNum === reviewPage ? ' is-active' : '')
+                    }
+                    onClick={() => setReviewPage(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              )}
             </div>
           )}
 

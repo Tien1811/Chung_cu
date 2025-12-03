@@ -22,131 +22,273 @@ class PostController extends Controller
         $this->cloudinary = $cloudinary;
     }
 
-    // GET api/posts
+    /**
+     * Chuẩn hoá ảnh + tính main_image_url, thumbnail_url cho 1 Post
+     */
+    protected function preparePostForResponse(Post $post): Post
+    {
+        // ===== Chuẩn hoá images: thêm full_url và sort theo sort_order =====
+        if ($post->relationLoaded('images')) {
+            $post->images = $post->images
+                ->sortBy('sort_order')
+                ->values()
+                ->map(function ($img) {
+                    $file = $img->file ?? null;
+
+                    $img->full_url = $file
+                        ? (
+                            $file->url
+                            ?? $file->secure_url
+                            ?? $file->image_url
+                            ?? $file->path
+                            ?? null
+                        )
+                        : null;
+
+                    return $img;
+                });
+        }
+
+        // ===== Tính thumbnail_url =====
+        $thumbUrl = null;
+        if ($post->relationLoaded('thumbnail') && $post->thumbnail) {
+            $t = $post->thumbnail;
+            $thumbUrl =
+                $t->url
+                ?? $t->secure_url
+                ?? $t->image_url
+                ?? $t->path
+                ?? null;
+        }
+        $post->thumbnail_url = $thumbUrl;
+
+        // ===== Tính main_image_url: ưu tiên thumbnail, sau đó ảnh đầu tiên =====
+        $mainImage = $thumbUrl;
+
+        if (!$mainImage && $post->relationLoaded('images') && $post->images->count()) {
+            $first = $post->images->first();
+
+            if (!empty($first->full_url)) {
+                $mainImage = $first->full_url;
+            } elseif ($first->file) {
+                $f = $first->file;
+                $mainImage =
+                    $f->url
+                    ?? $f->secure_url
+                    ?? $f->image_url
+                    ?? $f->path
+                    ?? null;
+            }
+        }
+
+        $post->main_image_url = $mainImage;
+
+        // ===== Tính sẵn trung bình & số lượng review (nếu chưa có) =====
+        if (!isset($post->reviews_avg)) {
+            $post->reviews_avg = round($post->reviews()->avg('rating') ?? 0, 1);
+        }
+        if (!isset($post->reviews_count)) {
+            $post->reviews_count = $post->reviews()->count();
+        }
+
+        return $post;
+    }
+
+    // =========================
+    // GET api/posts  (danh sách)
+    // =========================
     public function index()
     {
         try {
-            $posts = Post::with(['user:id,name,role', 'category:id,name', 'images', 'thumbnail'])
+            $posts = Post::with([
+                    'user',
+                    'category:id,name',
+                    'province:id,name',
+                    'district:id,name',
+                    'ward:id,name',
+                    'thumbnail',
+                    'images.file',
+                ])
+                ->withCount('reviews')
+                ->withAvg('reviews as reviews_avg', 'rating')
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            return response()->json(['status' => true, 'data' => $posts]);
+            // Chuẩn hoá ảnh + main_image_url cho từng bài
+            $posts = $posts->map(function ($post) {
+                return $this->preparePostForResponse($post);
+            });
+
+            return response()->json([
+                'status' => true,
+                'data'   => $posts,
+            ]);
         } catch (Exception $e) {
-            Log::error('Lỗi lấy danh sách bài viết: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể tải danh sách.'], 500);
+            Log::error('Lỗi lấy danh sách bài viết: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không thể tải danh sách.',
+            ], 500);
         }
     }
 
-    // GET api/posts/{id}
+    // =========================
+    // GET api/posts/{id}  (chi tiết)
+    // =========================
     public function show($id)
     {
         try {
-            $post = Post::with(['user:id,name,role', 'category:id,name', 'images', 'thumbnail'])->find($id);
+            $post = Post::with([
+                    'user',
+                    'category:id,name',
+                    'province:id,name',
+                    'district:id,name',
+                    'ward:id,name',
+                    'thumbnail',
+                    'images.file',
+                    'amenities:id,name',
+                    'environmentFeatures:id,name',
+                    'reviews.user',
+                ])
+                ->withCount('reviews')
+                ->withAvg('reviews as reviews_avg', 'rating')
+                ->findOrFail($id);   // <-- quan trọng: $id phải là số id thật trong DB
 
-            if (!$post) {
-                return response()->json(['status' => false, 'message' => 'Không tìm thấy bài viết.'], 404);
-            }
+            $post = $this->preparePostForResponse($post);
 
-            return response()->json(['status' => true, 'data' => $post]);
+            return response()->json([
+                'status' => true,
+                'data'   => $post,
+            ]);
         } catch (Exception $e) {
-            Log::error('Lỗi xem bài viết: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể xem bài viết.'], 500);
+            Log::error('Lỗi xem bài viết: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => $e->getMessage(),
+            ], 500);
         }
     }
 
-    // POST api/posts
+    // =========================
+    // POST api/posts  (tạo mới)
+    // =========================
     public function store(Request $request)
     {
         try {
             $user = Auth::user();
 
             if (!in_array($user->role, ['lessor', 'admin'])) {
-                return response()->json(['status' => false, 'message' => 'Bạn không có quyền đăng bài.'], 403);
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Bạn không có quyền đăng bài.',
+                ], 403);
             }
 
             $request->validate([
-                'category_id' => 'required|exists:categories,id',
-                'title' => 'required|string|max:255',
-                'price' => 'required|integer|min:0',
-                'area' => 'required|integer|min:1',
-                'address' => 'required|string|max:255',
-                'content' => 'nullable|string',
+                'category_id'   => 'required|exists:categories,id',
+                'title'         => 'required|string|max:255',
+                'price'         => 'required|integer|min:0',
+                'area'          => 'required|integer|min:1',
+                'address'       => 'required|string|max:255',
+                'content'       => 'nullable|string',
                 'contact_phone' => 'nullable|string|max:20',
-                'max_people' => 'nullable|integer|min:1',
-                'province_id' => 'nullable|exists:provinces,id',
-                'district_id' => 'nullable|exists:districts,id',
-                'ward_id' => 'nullable|exists:wards,id',
+                'max_people'    => 'nullable|integer|min:1',
+                'province_id'   => 'nullable|exists:provinces,id',
+                'district_id'   => 'nullable|exists:districts,id',
+                'ward_id'       => 'nullable|exists:wards,id',
             ]);
 
             $post = Post::create([
-                'user_id' => $user->id,
-                'category_id' => $request->category_id,
-                'title' => $request->title,
-                'price' => $request->price,
-                'area' => $request->area,
-                'address' => $request->address,
-                'content' => $request->content,
+                'user_id'       => $user->id,
+                'category_id'   => $request->category_id,
+                'title'         => $request->title,
+                'price'         => $request->price,
+                'area'          => $request->area,
+                'address'       => $request->address,
+                'content'       => $request->input('content'),
                 'contact_phone' => $request->contact_phone,
-                'max_people' => $request->max_people,
-                'province_id' => $request->province_id,
-                'district_id' => $request->district_id,
-                'ward_id' => $request->ward_id,
-                'status' => 'published',
-                'published_at' => now(),
+                'max_people'    => $request->max_people,
+                'province_id'   => $request->province_id,
+                'district_id'   => $request->district_id,
+                'ward_id'       => $request->ward_id,
+                'status'        => 'published',
+                'published_at'  => now(),
             ]);
 
-            // gửi thông báo admin
             if ($user->role === 'lessor') {
                 foreach (User::admins()->get() as $admin) {
                     Notification::create([
                         'user_id' => $admin->id,
-                        'type' => 'post_created',
+                        'type'    => 'post_created',
                         'content' => "{$user->name} vừa đăng bài: {$post->title}",
                     ]);
                 }
             }
 
-            return response()->json(['status' => true, 'message' => 'Thêm bài thành công.', 'data' => $post], 201);
-
+            return response()->json([
+                'status'  => true,
+                'message' => 'Thêm bài thành công.',
+                'data'    => $post,
+            ], 201);
         } catch (ValidationException $e) {
-            return response()->json(['status' => false, 'errors' => $e->errors()], 422);
+            return response()->json([
+                'status' => false,
+                'errors' => $e->errors(),
+            ], 422);
         } catch (Exception $e) {
             Log::error('Lỗi thêm bài viết: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể thêm bài viết.'], 500);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không thể thêm bài viết.',
+            ], 500);
         }
     }
 
-    // POST api/posts/{id}/thumbnail (upload thumbnail)
+    // =====================================
+    // POST api/posts/{id}/thumbnail (upload)
+    // =====================================
     public function uploadThumbnail(Request $request, $id)
     {
         try {
             $post = Post::find($id);
 
-            if (!$post) return response()->json(['status' => false, 'message' => 'Không tìm thấy bài viết.'], 404);
+            if (!$post) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Không tìm thấy bài viết.',
+                ], 404);
+            }
 
             $user = Auth::user();
 
             if ($user->role !== 'admin' && $post->user_id !== $user->id) {
-                return response()->json(['status' => false, 'message' => 'Không có quyền đổi thumbnail.'], 403);
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Không có quyền đổi thumbnail.',
+                ], 403);
             }
 
             $request->validate([
-                'thumbnail' => 'required|image|mimes:jpeg,png,jpg|max:4096'
+                'thumbnail' => 'required|image|mimes:jpeg,png,jpg|max:4096',
             ]);
 
-            // Xóa thumbnail cũ
             if ($post->thumbnail) {
                 $this->cloudinary->delete($post->thumbnail->public_id);
                 $post->thumbnail->delete();
             }
 
-            // Upload Cloudinary
             $upload = $this->cloudinary->upload(
                 $request->file('thumbnail')->getRealPath(),
                 'post_thumbnails'
             );
 
-            // Lưu vào cloudinary_files
             CloudinaryFile::create([
                 'model_type' => Post::class,
                 'model_id'   => $post->id,
@@ -156,58 +298,98 @@ class PostController extends Controller
             ]);
 
             return response()->json([
-                'status' => true,
-                'message' => 'Cập nhật thumbnail thành công.',
-                'thumbnail_url' => $upload['secure_url']
+                'status'        => true,
+                'message'       => 'Cập nhật thumbnail thành công.',
+                'thumbnail_url' => $upload['secure_url'],
             ]);
-
         } catch (Exception $e) {
             Log::error("Lỗi cập nhật thumbnail: " . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể cập nhật thumbnail.'], 500);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không thể cập nhật thumbnail.',
+            ], 500);
         }
     }
 
-    // PUT api/posts/{id}
+    // =========================
+    // PUT api/posts/{id} (sửa)
+    // =========================
     public function update(Request $request, $id)
     {
         try {
             $post = Post::find($id);
-            if (!$post) return response()->json(['status' => false, 'message' => 'Không tìm thấy bài viết.'], 404);
+
+            if (!$post) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Không tìm thấy bài viết.',
+                ], 404);
+            }
 
             $user = Auth::user();
 
             if ($user->role !== 'admin' && $post->user_id !== $user->id) {
-                return response()->json(['status' => false, 'message' => 'Không có quyền sửa bài.'], 403);
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Không có quyền sửa bài.',
+                ], 403);
             }
 
             $post->update($request->only([
-                'category_id', 'title', 'price', 'area', 'address',
-                'content', 'contact_phone', 'status',
-                'max_people', 'province_id', 'district_id', 'ward_id'
+                'category_id',
+                'title',
+                'price',
+                'area',
+                'address',
+                'content',
+                'contact_phone',
+                'status',
+                'max_people',
+                'province_id',
+                'district_id',
+                'ward_id',
             ]));
 
-            return response()->json(['status' => true, 'message' => 'Cập nhật bài thành công.', 'data' => $post]);
-
+            return response()->json([
+                'status'  => true,
+                'message' => 'Cập nhật bài thành công.',
+                'data'    => $post,
+            ]);
         } catch (Exception $e) {
             Log::error('Lỗi cập nhật bài viết: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể cập nhật bài viết.'], 500);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không thể cập nhật bài viết.',
+            ], 500);
         }
     }
 
+    // =========================
     // DELETE api/posts/{id}
+    // =========================
     public function destroy($id)
     {
         try {
             $post = Post::with('thumbnail')->find($id);
-            if (!$post) return response()->json(['status' => false, 'message' => 'Không tìm thấy bài viết.'], 404);
+
+            if (!$post) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Không tìm thấy bài viết.',
+                ], 404);
+            }
 
             $user = Auth::user();
 
             if ($user->role !== 'admin' && $post->user_id !== $user->id) {
-                return response()->json(['status' => false, 'message' => 'Không có quyền xóa bài.'], 403);
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Không có quyền xóa bài.',
+                ], 403);
             }
 
-            // Xóa thumbnail Cloudinary
             if ($post->thumbnail) {
                 $this->cloudinary->delete($post->thumbnail->public_id);
                 $post->thumbnail->delete();
@@ -215,11 +397,17 @@ class PostController extends Controller
 
             $post->delete();
 
-            return response()->json(['status' => true, 'message' => 'Xóa bài viết thành công.']);
-
+            return response()->json([
+                'status'  => true,
+                'message' => 'Xóa bài viết thành công.',
+            ]);
         } catch (Exception $e) {
             Log::error('Lỗi xóa bài viết: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể xóa bài viết.'], 500);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không thể xóa bài viết.',
+            ], 500);
         }
     }
 }

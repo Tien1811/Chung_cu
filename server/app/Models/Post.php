@@ -11,7 +11,7 @@ class Post extends Model
     protected $fillable = [
         'user_id', 'category_id', 'title', 'price', 'area', 'address',
         'province_id', 'district_id', 'ward_id', 'lat', 'lng',
-        'content', 'status', 'published_at', 'max_people', 'contact_phone'
+        'content', 'status', 'published_at', 'max_people', 'contact_phone','post_id',
     ];
 
     public function user() {
