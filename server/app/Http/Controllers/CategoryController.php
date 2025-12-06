@@ -10,110 +10,181 @@ use Exception;
 
 class CategoryController extends Controller
 {
-    // GET /api/categories (xem tất cả)
-    public function index()
+    /**
+     * GET /api/categories
+     * -> trả về danh sách kèm posts_count cho FE admin
+     */
+    public function index(Request $request)
     {
         try {
-            $categories = Category::select('id', 'slug', 'name')->orderBy('name')->get();
-            return response()->json(['status' => true, 'data' => $categories]);
+            $q = $request->query('q');
+
+            $query = Category::select('id', 'slug', 'name')
+                // đếm số bài post của từng category => cột posts_count
+                ->withCount('posts')
+                ->orderBy('name');
+
+            // nếu FE gửi q (tìm kiếm theo tên)
+            if ($q) {
+                $query->where('name', 'like', '%'.$q.'%');
+            }
+
+            $categories = $query->get();
+
+            return response()->json([
+                'status' => true,
+                'data'   => $categories,
+            ]);
         } catch (Exception $e) {
             Log::error('Lỗi lấy danh sách danh mục: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể lấy danh sách danh mục.'], 500);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không thể lấy danh sách danh mục.',
+            ], 500);
         }
     }
 
-    // GET /api/categories/{id} (xem chi tiết)
+    /**
+     * GET /api/categories/{id}
+     */
     public function show($id)
     {
         $category = Category::find($id);
         if (!$category) {
-            return response()->json(['status' => false, 'message' => 'Không tìm thấy danh mục.'], 404);
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không tìm thấy danh mục.',
+            ], 404);
         }
-        return response()->json(['status' => true, 'data' => $category]);
+
+        return response()->json([
+            'status' => true,
+            'data'   => $category,
+        ]);
     }
 
-    // POST /api/categories (chỉ admin thêm)
+    /**
+     * POST /api/categories
+     * chỉ admin được thêm
+     */
     public function store(Request $request)
     {
         $user = Auth::user();
         if ($user->role !== 'admin') {
-            return response()->json(['status' => false, 'message' => 'Chỉ admin mới được thêm danh mục.'], 403);
+            return response()->json([
+                'status'  => false,
+                'message' => 'Chỉ admin mới được thêm danh mục.',
+            ], 403);
         }
 
         $request->validate([
             'name' => 'required|string|max:191',
-            'slug' => 'nullable|string|max:100|unique:categories,slug'
+            'slug' => 'nullable|string|max:100|unique:categories,slug',
         ]);
 
         try {
             $category = Category::create([
                 'slug' => $request->slug ?? \Str::slug($request->name, '-'),
-                'name' => $request->name
+                'name' => $request->name,
             ]);
 
             return response()->json([
-                'status' => true,
+                'status'  => true,
                 'message' => 'Thêm danh mục thành công.',
-                'data' => $category
+                'data'    => $category,
             ], 201);
         } catch (Exception $e) {
             Log::error('Lỗi thêm danh mục: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể thêm danh mục.'], 500);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không thể thêm danh mục.',
+            ], 500);
         }
     }
 
-    // PUT /api/categories/{id} (chỉ admin sửa)
+    /**
+     * PUT /api/categories/{id}
+     * chỉ admin được sửa
+     */
     public function update(Request $request, $id)
     {
         $user = Auth::user();
         if ($user->role !== 'admin') {
-            return response()->json(['status' => false, 'message' => 'Chỉ admin mới được sửa danh mục.'], 403);
+            return response()->json([
+                'status'  => false,
+                'message' => 'Chỉ admin mới được sửa danh mục.',
+            ], 403);
         }
 
         $request->validate([
             'name' => 'required|string|max:191',
-            'slug' => 'nullable|string|max:100|unique:categories,slug,' . $id
+            'slug' => 'nullable|string|max:100|unique:categories,slug,' . $id,
         ]);
 
         $category = Category::find($id);
         if (!$category) {
-            return response()->json(['status' => false, 'message' => 'Không tìm thấy danh mục.'], 404);
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không tìm thấy danh mục.',
+            ], 404);
         }
 
         $category->update([
             'slug' => $request->slug ?? $category->slug,
-            'name' => $request->name
+            'name' => $request->name,
         ]);
 
-        return response()->json(['status' => true, 'message' => 'Cập nhật danh mục thành công.', 'data' => $category]);
+        return response()->json([
+            'status'  => true,
+            'message' => 'Cập nhật danh mục thành công.',
+            'data'    => $category,
+        ]);
     }
 
-    // DELETE /api/categories/{id} (chỉ admin xóa)
+    /**
+     * DELETE /api/categories/{id}
+     * chỉ admin được xoá
+     */
     public function destroy($id)
     {
         $user = Auth::user();
         if ($user->role !== 'admin') {
-            return response()->json(['status' => false, 'message' => 'Chỉ admin mới được xóa danh mục.'], 403);
+            return response()->json([
+                'status'  => false,
+                'message' => 'Chỉ admin mới được xóa danh mục.',
+            ], 403);
         }
 
         $category = Category::find($id);
         if (!$category) {
-            return response()->json(['status' => false, 'message' => 'Không tìm thấy danh mục.'], 404);
+            return response()->json([
+                'status'  => false,
+                'message' => 'Không tìm thấy danh mục.',
+            ], 404);
         }
 
         $category->delete();
-        return response()->json(['status' => true, 'message' => 'Xóa danh mục thành công.']);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Xóa danh mục thành công.',
+        ]);
     }
 
-    // GET /api/categories/{id}/posts (lấy bài viết theo danh mục)
+    /**
+     * GET /api/categories/{id}/posts
+     * Lấy danh sách bài viết thuộc 1 category
+     */
     public function getPostsByCategory($id)
     {
         try {
             $category = Category::find($id);
             if (!$category) {
                 return response()->json([
-                    'status' => false,
-                    'message' => 'Không tìm thấy danh mục.'
+                    'status'  => false,
+                    'message' => 'Không tìm thấy danh mục.',
                 ], 404);
             }
 
@@ -123,18 +194,19 @@ class CategoryController extends Controller
                 ->get();
 
             return response()->json([
-                'status' => true,
+                'status'   => true,
                 'category' => [
-                    'id' => $category->id,
+                    'id'   => $category->id,
                     'name' => $category->name,
                 ],
-                'posts' => $posts
+                'posts'    => $posts,
             ], 200);
         } catch (Exception $e) {
-            \Log::error('Lỗi lấy bài viết theo danh mục: ' . $e->getMessage());
+            Log::error('Lỗi lấy bài viết theo danh mục: ' . $e->getMessage());
+
             return response()->json([
-                'status' => false,
-                'message' => 'Không thể lấy danh sách bài viết.'
+                'status'  => false,
+                'message' => 'Không thể lấy danh sách bài viết.',
             ], 500);
         }
     }

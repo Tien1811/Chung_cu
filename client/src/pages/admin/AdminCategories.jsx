@@ -1,12 +1,35 @@
 // src/pages/admin/AdminCategories.jsx
 import { useEffect, useState } from 'react'
+import '@/assets/style/pages/admin.css'
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+
+async function safeJson(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    console.warn('Phản hồi không phải JSON:', res.url, text.slice(0, 120))
+    return null
+  }
+}
 
 export default function AdminCategories() {
-  // ===== STATE =====
-  const [items, setItems] = useState([])        // danh sách categories từ API
-  const [q, setQ] = useState('')               // từ khoá tìm kiếm
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // form tạo / sửa
+  const [showForm, setShowForm] = useState(false)
+  const [formId, setFormId] = useState(null) // null = thêm mới, khác null = sửa
+  const [formName, setFormName] = useState('')
+  const [formSlug, setFormSlug] = useState('')
+  const [formLoading, setFormLoading] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [formSuccess, setFormSuccess] = useState('')
+
+  const token = localStorage.getItem('access_token')
 
   // ===== LOAD DANH MỤC TỪ API =====
   useEffect(() => {
@@ -17,42 +40,23 @@ export default function AdminCategories() {
         setLoading(true)
         setError('')
 
-        const params = new URLSearchParams()
-        if (q.trim()) params.append('q', q.trim())
+        const res = await fetch(`${API_BASE_URL}/categories`, {
+          signal: controller.signal,
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+            Accept: 'application/json',
+          },
+        })
 
-        /**
-         * API #1 – Lấy danh sách categories
-         * Gợi ý backend Laravel:
-         *   GET /api/admin/categories?q={keyword}
-         *
-         * Response gợi ý:
-         *   {
-         *     "data": [
-         *       { "id": 1, "slug": "phong-tro", "name": "Phòng trọ", "posts_count": 120 },
-         *       ...
-         *     ]
-         *   }
-         * hoặc trả mảng [] trực tiếp cũng được.
-         */
-        const res = await fetch(
-          `/api/admin/categories?${params.toString()}`,
-          { signal: controller.signal },
-        )
-
-        const text = await res.text()
-        let json
-        try {
-          json = JSON.parse(text)
-        } catch {
-          // trường hợp backend đang trả HTML (404, trang login, lỗi PHP...)
-          throw new Error("Response không phải JSON hợp lệ (backend chưa trả JSON).")
-        }
+        const json = await safeJson(res)
 
         if (!res.ok) {
-          throw new Error(json?.message || 'Không tải được danh sách danh mục')
+          throw new Error(
+            json?.message || 'Không tải được danh sách danh mục',
+          )
         }
 
-        const list = json.data || json
+        const list = json?.data || json || []
         setItems(Array.isArray(list) ? list : [])
       } catch (err) {
         if (err.name === 'AbortError') return
@@ -65,131 +69,213 @@ export default function AdminCategories() {
 
     fetchCategories()
     return () => controller.abort()
-  }, [q])
+  }, [token])
 
-  // ===== XOÁ 1 DANH MỤC =====
-  const handleDelete = async (id) => {
-    if (!window.confirm(`Bạn chắc chắn muốn xoá danh mục #${id}?`)) return
+  // ===== RESET FORM =====
+  const resetForm = () => {
+    setFormId(null)
+    setFormName('')
+
+    setFormError('')
+    setFormSuccess('')
+  }
+
+  // ===== MỞ FORM Ở CHẾ ĐỘ THÊM MỚI =====
+  const handleCreateClick = () => {
+    resetForm()
+    setShowForm(true)
+  }
+
+  // ===== MỞ FORM Ở CHẾ ĐỘ SỬA =====
+  const handleEditClick = cat => {
+    setFormId(cat.id)
+    setFormName(cat.name || '')
+
+    setFormError('')
+    setFormSuccess('')
+    setShowForm(true)
+  }
+
+  // ===== SUBMIT FORM THÊM / SỬA =====
+  const handleSubmit = async e => {
+    e.preventDefault()
+    setFormError('')
+    setFormSuccess('')
+
+    if (!formName.trim()) {
+      setFormError('Vui lòng nhập tên danh mục')
+      return
+    }
 
     try {
-      /**
-       * API #2 – Xoá 1 category
-       *   DELETE /api/admin/categories/{id}
-       * Gợi ý Laravel:
-       *   Route::delete('/admin/categories/{category}', ...);
-       */
-      const res = await fetch(`/api/admin/categories/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+      setFormLoading(true)
+
+      const payload = {
+        name: formName.trim(),
+       
+      }
+
+      const isEdit = !!formId
+      const url = isEdit
+        ? `${API_BASE_URL}/categories/${formId}`
+        : `${API_BASE_URL}/categories`
+      const method = isEdit ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
       })
 
-      const text = await res.text()
-      let json = {}
-      try {
-        json = text ? JSON.parse(text) : {}
-      } catch {
-        // nếu backend trả 204 No Content thì không sao, bỏ qua parse
+      const json = await safeJson(res)
+
+      if (!res.ok || json?.status === false) {
+        throw new Error(json?.message || 'Không lưu được danh mục')
       }
 
-      if (!res.ok) {
-        throw new Error(json?.message || 'Không xoá được danh mục')
+      const saved = json.data || {}
+
+      if (isEdit) {
+        // cập nhật trong list, giữ nguyên posts_count
+        setItems(prev =>
+          prev.map(c => (c.id === saved.id ? { ...c, ...saved } : c)),
+        )
+        setFormSuccess('Cập nhật danh mục thành công')
+      } else {
+        // thêm mới, posts_count = 0
+        setItems(prev => [{ ...saved, posts_count: 0 }, ...prev])
+        setFormSuccess('Thêm danh mục thành công')
       }
 
-      // xoá khỏi state ở FE
-      setItems((prev) => prev.filter((c) => c.id !== id))
+      // ẩn form sau khi lưu
+      setShowForm(false)
+      resetForm()
     } catch (err) {
       console.error(err)
-      alert(err.message || 'Có lỗi khi xoá danh mục')
+      setFormError(err.message || 'Có lỗi khi lưu danh mục')
+    } finally {
+      setFormLoading(false)
     }
   }
 
   return (
     <section className="admin-page">
-      {/* PHẦN HEADER TRANG */}
+      {/* HEADER TRANG */}
       <header className="admin-page__head">
         <div>
           <h1 className="admin-page__title">Danh mục bài đăng</h1>
           <p className="admin-page__desc">
-            Quản lý bảng <code>categories</code>: tên danh mục, slug, số lượng bài (posts_count).
+            Quản lý bảng <code>categories</code>: tên danh mục, slug, số lượng
+            bài (posts_count).
           </p>
         </div>
 
-        {/* TODO: sau này mở modal / chuyển trang tạo mới */}
-        <button
-          type="button"
-          className="admin-btn admin-btn--primary"
-          onClick={() => alert('TODO: mở form tạo category mới')}
-        >
-          + Thêm danh mục
-        </button>
+       
       </header>
 
-      {/* CARD CHÍNH */}
       <div className="admin-section--card">
-        {/* Thanh search */}
-        <div className="admin-toolbar">
-          <div className="admin-input-wrap admin-input-wrap--search">
-            <span className="admin-input__icon">🔍</span>
-            <input
-              className="admin-input admin-input--search"
-              placeholder="Tìm theo tên danh mục..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </div>
-        </div>
+        {/* FORM THÊM / SỬA – chỉ hiện khi showForm = true */}
+        {showForm && (
+          <form className="admin-form-inline" onSubmit={handleSubmit}>
+            <div className="admin-form-inline__fields">
+              <div className="admin-field">
+                <label>
+                  <span>Tên danh mục *</span>
+                  <input
+                    className="admin-input"
+                    value={formName}
+                    onChange={e => setFormName(e.target.value)}
+                    placeholder="Phòng trọ, căn hộ, ký túc xá..."
+                  />
+                </label>
+              </div>
 
-        {/* Thông báo lỗi / loading */}
+
+            </div>
+
+            <div className="admin-form-inline__actions">
+              <button
+                type="submit"
+                className="admin-btn admin-btn--primary"
+                disabled={formLoading}
+              >
+                {formId
+                  ? formLoading
+                    ? 'Đang cập nhật...'
+                    : 'Lưu thay đổi'
+                  : formLoading
+                    ? 'Đang thêm...'
+                    : 'Thêm danh mục'}
+              </button>
+
+              <button
+                type="button"
+                className="admin-btn admin-btn--ghost"
+                onClick={() => {
+                  setShowForm(false)
+                  resetForm()
+                }}
+                disabled={formLoading}
+              >
+                Đóng
+              </button>
+            </div>
+
+            {formError && (
+              <p className="admin-error" style={{ marginTop: 8 }}>
+                {formError}
+              </p>
+            )}
+            {formSuccess && (
+              <p className="admin-success" style={{ marginTop: 8 }}>
+                {formSuccess}
+              </p>
+            )}
+          </form>
+        )}
+
+        {/* LỖI & LOADING */}
         {error && <p className="admin-error">{error}</p>}
         {loading && <p className="admin-loading">Đang tải danh mục…</p>}
 
-        {/* Bảng dữ liệu */}
+        {/* BẢNG DỮ LIỆU */}
         <div className="admin-card-table">
           <table className="admin-table admin-table--compact">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Slug</th>
                 <th>Tên</th>
                 <th>Số bài đăng</th>
-                <th style={{ width: 150 }}>Thao tác</th>
+                <th style={{ width: 140 }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {/* Nếu không có data */}
               {items.length === 0 && !loading && !error && (
                 <tr>
                   <td colSpan={5} className="admin-empty">
-                    Chưa có danh mục nào hoặc không tìm thấy kết quả.
+                    Chưa có danh mục nào.
                   </td>
                 </tr>
               )}
 
-              {/* Data thật từ API */}
-              {items.map((cat) => (
+              {items.map(cat => (
                 <tr key={cat.id}>
                   <td>{cat.id}</td>
-                  <td>{cat.slug}</td>
                   <td>{cat.name}</td>
                   <td>{cat.posts_count ?? 0}</td>
                   <td className="admin-td-actions">
-                    {/* TODO: thay alert bằng form sửa */}
                     <button
                       type="button"
                       className="admin-chip admin-chip--ghost"
-                      onClick={() =>
-                        alert(`TODO: mở form sửa category #${cat.id}`)
-                      }
+                      onClick={() => handleEditClick(cat)}
                     >
                       Sửa
                     </button>
-                    <button
-                      type="button"
-                      className="admin-chip admin-chip--danger"
-                      onClick={() => handleDelete(cat.id)}
-                    >
-                      Xoá
-                    </button>
+                    {/* KHÔNG CÒN NÚT XOÁ */}
                   </td>
                 </tr>
               ))}

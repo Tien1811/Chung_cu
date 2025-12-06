@@ -6,6 +6,19 @@ import Login from '../pages/Login'
 import Register from '../pages/Register'
 import UserSettingsModal from '../components/UserSettingsModal'
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+
+async function safeJson(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    console.warn('Header: phản hồi không phải JSON', res.url, text.slice(0, 120))
+    return null
+  }
+}
+
 export default function Header() {
   const [showLogin, setShowLogin] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
@@ -14,6 +27,9 @@ export default function Header() {
   const [user, setUser] = useState(null)
   const [indicatorStyle, setIndicatorStyle] = useState({})
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // danh sách 4 category hiển thị trên menu
+  const [navCategories, setNavCategories] = useState([])
 
   const navRef = useRef(null)
   const userMenuRef = useRef(null)
@@ -47,10 +63,33 @@ export default function Header() {
     })
   }, [location.pathname])
 
+  // ===== Lấy categories cho menu (4 mục Phòng trọ / Nhà nguyên căn / Căn hộ / Ký túc xá) =====
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/categories`, {
+          headers: { Accept: 'application/json' },
+        })
+        const data = await safeJson(res)
+        if (!res.ok) return
+
+        let list = data?.data || data || []
+        if (!Array.isArray(list)) list = []
+
+        // đảm bảo sort theo id tăng dần rồi lấy 4 cái đầu
+        list = [...list].sort((a, b) => Number(a.id) - Number(b.id))
+
+        setNavCategories(list.slice(0, 4))
+      } catch (e) {
+        console.error('Header: lỗi load categories cho menu:', e)
+      }
+    })()
+  }, [])
+
   // ===== Hàm lấy user từ API khi chỉ có token =====
   const fetchUserFromApi = async token => {
     try {
-      // Nếu backend bạn dùng /api/me thì đổi lại ở đây
+      // nếu backend là /api/user/profile thì đổi URL ở đây
       const res = await fetch('/api/user', {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -66,7 +105,7 @@ export default function Header() {
       setUser(u)
       localStorage.setItem('auth_user', JSON.stringify(u))
     } catch (e) {
-    console.error('Lỗi fetch user từ /api/user/profile:', e)
+      console.error('Lỗi fetch user từ /api/user:', e)
       setUser(null)
     }
   }
@@ -162,18 +201,37 @@ export default function Header() {
 
           <nav className="nav" ref={navRef}>
             <span className="nav__indicator" style={indicatorStyle} />
-            <NavLink to="/phong-tro" className={navClass}>
-              Phòng trọ
-            </NavLink>
-            <NavLink to="/nha-nguyen-can" className={navClass}>
-              Nhà nguyên căn
-            </NavLink>
-            <NavLink to="/can-ho" className={navClass}>
-              Căn hộ
-            </NavLink>
-            <NavLink to="/ky-tuc-xa" className={navClass}>
-              Ký túc xá
-            </NavLink>
+
+            {/* 4 mục chính lấy từ categories */}
+            {navCategories.length > 0 ? (
+              navCategories.map(cat => (
+                <NavLink
+                  key={cat.id}
+                  to={`/${cat.slug}`} // route dùng slug (phong-tro, nha-nguyen-can, ...)
+                  className={navClass}
+                >
+                  {cat.name} {/* hiển thị tên: căn hộ, ký túc xá, ... */}
+                </NavLink>
+              ))
+            ) : (
+              <>
+                {/* fallback khi API lỗi / chưa load */}
+                <NavLink to="/phong-tro" className={navClass}>
+                  Phòng trọ
+                </NavLink>
+                <NavLink to="/nha-nguyen-can" className={navClass}>
+                  Nhà nguyên căn
+                </NavLink>
+                <NavLink to="/can-ho" className={navClass}>
+                  Căn hộ
+                </NavLink>
+                <NavLink to="/ky-tuc-xa" className={navClass}>
+                  Ký túc xá
+                </NavLink>
+              </>
+            )}
+
+            {/* các mục tĩnh */}
             <NavLink to="/reviews" className={navClass}>
               Review
             </NavLink>
@@ -283,26 +341,25 @@ export default function Header() {
       </header>
 
       {/* Popup login / register */}
-  {showLogin && (
-  <Login
-    onClose={() => setShowLogin(false)}
-    onSwitchToRegister={() => {
-      setShowLogin(false)
-      setShowRegister(true)
-    }}
-  />
-)}
+      {showLogin && (
+        <Login
+          onClose={() => setShowLogin(false)}
+          onSwitchToRegister={() => {
+            setShowLogin(false)
+            setShowRegister(true)
+          }}
+        />
+      )}
 
-{showRegister && (
-  <Register
-    onClose={() => setShowRegister(false)}
-    onSwitchToLogin={() => {
-      setShowRegister(false)
-      setShowLogin(true)
-    }}
-  />
-)}
-
+      {showRegister && (
+        <Register
+          onClose={() => setShowRegister(false)}
+          onSwitchToLogin={() => {
+            setShowRegister(false)
+            setShowLogin(true)
+          }}
+        />
+      )}
 
       {/* Popup cài đặt tài khoản */}
       {showSettings && user && (

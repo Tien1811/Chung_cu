@@ -1,5 +1,19 @@
 // src/pages/admin/AdminSavedPosts.jsx
 import { useEffect, useState } from 'react'
+import '@/assets/style/pages/admin.css'
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+
+async function safeJson(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    console.warn('Phản hồi không phải JSON:', res.url, text.slice(0, 120))
+    return null
+  }
+}
 
 export default function AdminSavedPosts() {
   // ===== STATE =====
@@ -7,6 +21,8 @@ export default function AdminSavedPosts() {
   const [q, setQ] = useState('')             // từ khoá tìm theo user / post
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const token = localStorage.getItem('access_token')
 
   // ============================
   // LOAD DANH SÁCH BÀI ĐÃ LƯU
@@ -22,59 +38,26 @@ export default function AdminSavedPosts() {
         const params = new URLSearchParams()
         if (q.trim()) params.append('q', q.trim())
 
-        /**
-         * API #1 – Lấy danh sách saved_posts
-         *
-         * Gợi ý backend Laravel:
-         *   GET /api/admin/saved-posts?q={keyword}
-         *
-         * - {keyword} có thể tìm theo email / name user, title post.
-         *
-         * Ví dụ Eloquent:
-         *   SavedPost::with(['user:id,name,email', 'post:id,title'])
-         *     ->when($q, function ($query) use ($q) {
-         *         $query->whereHas('user', fn($u) =>
-         *             $u->where('email','like',"%$q%")
-         *               ->orWhere('name','like',"%$q%"))
-         *               ->orWhereHas('post', fn($p) =>
-         *             $p->where('title','like',"%$q%"));
-         *     })
-         *     ->orderByDesc('created_at')
-         *     ->get();
-         *
-         * Response gợi ý:
-         *   {
-         *     "data": [
-         *       {
-         *         "id": 1,
-         *         "created_at": "2025-11-10T09:30:00Z",
-         *         "user": { "id": 3, "name": "Duy", "email": "duy@example.com" },
-         *         "post": { "id": 10, "title": "Phòng trọ full nội thất Q.7" }
-         *       },
-         *       ...
-         *     ]
-         *   }
-         * hoặc trả trực tiếp mảng [] cũng được.
-         */
         const res = await fetch(
-          `/api/admin/saved-posts?${params.toString()}`,
-          { signal: controller.signal },
+          `${API_BASE_URL}/admin/saved-posts?${params.toString()}`,
+          {
+            signal: controller.signal,
+            headers: {
+              Authorization: token ? `Bearer ${token}` : undefined,
+              Accept: 'application/json',
+            },
+          },
         )
 
-        const text = await res.text()
-        let json
-        try {
-          json = JSON.parse(text)
-        } catch {
-          // Trường hợp BE đang trả HTML (lỗi PHP, 404, trang login...)
-          throw new Error('Response không phải JSON hợp lệ (saved_posts).')
-        }
+        const json = await safeJson(res)
 
         if (!res.ok) {
-          throw new Error(json?.message || 'Không tải được danh sách bài đã lưu')
+          throw new Error(
+            json?.message || 'Không tải được danh sách bài đã lưu',
+          )
         }
 
-        const list = json.data || json
+        const list = json?.data || json || []
         setItems(Array.isArray(list) ? list : [])
       } catch (err) {
         if (err.name === 'AbortError') return
@@ -87,46 +70,34 @@ export default function AdminSavedPosts() {
 
     fetchSaved()
     return () => controller.abort()
-  }, [q])
+  }, [q, token])
 
   // ============================
   // XOÁ 1 DÒNG SAVED_POST
   // ============================
-  const handleDelete = async (id) => {
+  const handleDelete = async id => {
     if (!window.confirm(`Xoá dòng saved_posts #${id}?`)) return
 
     try {
-      /**
-       * API #2 – Xoá 1 dòng saved_posts
-       *
-       * Laravel gợi ý:
-       *   DELETE /api/admin/saved-posts/{id}
-       *
-       * Controller:
-       *   public function destroy(SavedPost $savedPost) {
-       *     $savedPost->delete();
-       *     return response()->noContent(); // 204
-       *   }
-       */
-      const res = await fetch(`/api/admin/saved-posts/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      })
+      const res = await fetch(
+        `${API_BASE_URL}/admin/saved-posts/${id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+            Accept: 'application/json',
+          },
+        },
+      )
 
-      const text = await res.text()
-      let json = {}
-      try {
-        json = text ? JSON.parse(text) : {}
-      } catch {
-        // nếu backend trả 204 No Content thì không cần parse
-      }
+      const json = await safeJson(res)
 
-      if (!res.ok) {
+      if (!res.ok || json?.status === false) {
         throw new Error(json?.message || 'Không xoá được dòng saved_posts')
       }
 
       // xoá trên FE
-      setItems((prev) => prev.filter((it) => it.id !== id))
+      setItems(prev => prev.filter(it => it.id !== id))
     } catch (err) {
       console.error(err)
       alert(err.message || 'Có lỗi khi xoá')
@@ -145,7 +116,7 @@ export default function AdminSavedPosts() {
         </div>
       </header>
 
-      {/* CARD CHÍNH (dùng style giống các trang danh mục hệ thống) */}
+      {/* CARD CHÍNH */}
       <div className="admin-section--card">
         {/* Thanh search */}
         <div className="admin-toolbar">
@@ -155,14 +126,16 @@ export default function AdminSavedPosts() {
               className="admin-input admin-input--search"
               placeholder="Tìm theo email, tên người dùng hoặc tiêu đề bài đăng..."
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={e => setQ(e.target.value)}
             />
           </div>
         </div>
 
         {/* Thông báo lỗi / loading */}
         {error && <p className="admin-error">{error}</p>}
-        {loading && <p className="admin-loading">Đang tải danh sách bài đã lưu…</p>}
+        {loading && (
+          <p className="admin-loading">Đang tải danh sách bài đã lưu…</p>
+        )}
 
         {/* Bảng dữ liệu */}
         <div className="admin-card-table">
@@ -185,7 +158,7 @@ export default function AdminSavedPosts() {
                 </tr>
               )}
 
-              {items.map((row) => {
+              {items.map(row => {
                 const user = row.user || {}
                 const post = row.post || {}
                 const savedAt = row.created_at

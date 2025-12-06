@@ -1,12 +1,42 @@
 // src/pages/admin/AdminAmenities.jsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Fragment } from 'react'
+import '@/assets/style/pages/admin.css'
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+
+async function safeJson(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    console.warn('Phản hồi không phải JSON:', res.url, text.slice(0, 120))
+    return null
+  }
+}
 
 export default function AdminAmenities() {
-  // ===== STATE =====
-  const [items, setItems] = useState([])        // danh sách amenities từ API
-  const [q, setQ] = useState('')               // từ khoá tìm kiếm (slug/name)
+  // DANH SÁCH TIỆN ÍCH
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // FORM SỬA
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editSlug, setEditSlug] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+
+  // FORM THÊM MỚI
+  const [createName, setCreateName] = useState('')
+  const [createSlug, setCreateSlug] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [createSuccess, setCreateSuccess] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+
+  const token = localStorage.getItem('access_token')
 
   // ===== LOAD TIỆN ÍCH TỪ API =====
   useEffect(() => {
@@ -17,47 +47,21 @@ export default function AdminAmenities() {
         setLoading(true)
         setError('')
 
-        const params = new URLSearchParams()
-        if (q.trim()) params.append('q', q.trim())
+        const res = await fetch(`${API_BASE_URL}/amenities`, {
+          signal: controller.signal,
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+            Accept: 'application/json',
+          },
+        })
 
-        /**
-         * API #1 – Lấy danh sách tiện ích (amenities)
-         * Gợi ý backend Laravel:
-         *   GET /api/admin/amenities?q={keyword}
-         *
-         * Trong controller:
-         *   Amenity::query()
-         *      ->when($q, fn($qr) => $qr->where('name','like',"%$q%")
-         *                                ->orWhere('slug','like',"%$q%"))
-         *      ->withCount('posts')      // quan hệ qua bảng amenity_post
-         *
-         * Response gợi ý:
-         *   {
-         *     "data": [
-         *       { "id": 1, "slug": "may-lanh", "name": "Máy lạnh", "posts_count": 230 },
-         *       ...
-         *     ]
-         *   }
-         * hoặc trả trực tiếp mảng [] cũng được.
-         */
-        const res = await fetch(
-          `/api/admin/amenities?${params.toString()}`,
-          { signal: controller.signal },
-        )
-
-        const text = await res.text()
-        let json
-        try {
-          json = JSON.parse(text)
-        } catch {
-          throw new Error('Response không phải JSON hợp lệ (backend chưa trả JSON).')
-        }
+        const json = await safeJson(res)
 
         if (!res.ok) {
           throw new Error(json?.message || 'Không tải được danh sách tiện ích')
         }
 
-        const list = json.data || json
+        const list = json?.data || json || []
         setItems(Array.isArray(list) ? list : [])
       } catch (err) {
         if (err.name === 'AbortError') return
@@ -70,42 +74,151 @@ export default function AdminAmenities() {
 
     fetchAmenities()
     return () => controller.abort()
-  }, [q])
+  }, [token])
+
+  // ===== MỞ / ĐÓNG FORM SỬA =====
+  const handleStartEdit = amenity => {
+    setEditingId(amenity.id)
+    setEditName(amenity.name || '')
+    setEditSlug(amenity.slug || '')
+    setFormError('')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditName('')
+    setEditSlug('')
+    setFormError('')
+  }
+
+  // ===== SUBMIT FORM SỬA =====
+  const handleSubmitEdit = async e => {
+    e.preventDefault()
+    if (!editingId) return
+
+    if (!editName.trim()) {
+      setFormError('Vui lòng nhập tên tiện ích')
+      return
+    }
+
+    try {
+      setSaving(true)
+      setFormError('')
+
+      const res = await fetch(`${API_BASE_URL}/amenities/${editingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          name: editName.trim(),
+          slug: editSlug.trim() || null,
+        }),
+      })
+
+      const json = await safeJson(res)
+
+      if (!res.ok || json?.status === false) {
+        throw new Error(json?.message || 'Không cập nhật được tiện ích')
+      }
+
+      setItems(prev =>
+        prev.map(a =>
+          a.id === editingId
+            ? { ...a, name: editName.trim(), slug: editSlug.trim() || a.slug }
+            : a,
+        ),
+      )
+
+      // tắt form sau khi lưu
+      handleCancelEdit()
+    } catch (err) {
+      console.error(err)
+      setFormError(err.message || 'Có lỗi khi cập nhật tiện ích')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ===== THÊM TIỆN ÍCH MỚI =====
+  const handleCreateAmenity = async e => {
+    e.preventDefault()
+
+    if (!createName.trim()) {
+      setCreateError('Vui lòng nhập tên tiện ích')
+      return
+    }
+
+    try {
+      setCreating(true)
+      setCreateError('')
+      setCreateSuccess('')
+
+      // POST /api/amenities (Laravel: Route::post('/amenities', 'store'))
+      const res = await fetch(`${API_BASE_URL}/amenities`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          name: createName.trim(),
+          slug: createSlug.trim() || null,
+        }),
+      })
+
+      const json = await safeJson(res)
+
+      if (!res.ok || json?.status === false) {
+        throw new Error(json?.message || 'Không thêm được tiện ích')
+      }
+
+      const newAmenity = json?.data || json
+
+      // thêm tiện ích mới lên đầu danh sách
+      setItems(prev => [newAmenity, ...prev])
+
+      setCreateSuccess('Thêm tiện ích thành công.')
+      setCreateName('')
+      setCreateSlug('')
+
+      // nếu muốn sau khi thêm thì ẩn form:
+      // setShowCreate(false)
+    } catch (err) {
+      console.error(err)
+      setCreateError(err.message || 'Có lỗi khi thêm tiện ích')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   // ===== XOÁ 1 TIỆN ÍCH =====
-  const handleDelete = async (id) => {
+  const handleDelete = async id => {
     if (!window.confirm(`Bạn chắc chắn muốn xoá tiện ích #${id}?`)) return
 
     try {
-      /**
-       * API #2 – Xoá tiện ích
-       *
-       * Gợi ý Laravel:
-       *   DELETE /api/admin/amenities/{amenity}
-       *
-       * - Trước khi xoá nên detach bản ghi trong bảng trung gian amenity_post
-       *   $amenity->posts()->detach();
-       * - Sau đó $amenity->delete();
-       */
-      const res = await fetch(`/api/admin/amenities/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/amenities/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
       })
 
-      const text = await res.text()
-      let json = {}
-      try {
-        json = text ? JSON.parse(text) : {}
-      } catch {
-        // nếu backend trả 204 No Content thì bỏ qua parse
-      }
+      const json = await safeJson(res)
 
-      if (!res.ok) {
+      if (!res.ok || json?.status === false) {
         throw new Error(json?.message || 'Không xoá được tiện ích')
       }
 
-      // Cập nhật lại state FE (xoá khỏi danh sách hiện tại)
-      setItems((prev) => prev.filter((a) => a.id !== id))
+      setItems(prev => prev.filter(a => a.id !== id))
+
+      if (editingId === id) {
+        handleCancelEdit()
+      }
     } catch (err) {
       console.error(err)
       alert(err.message || 'Có lỗi khi xoá tiện ích')
@@ -114,7 +227,7 @@ export default function AdminAmenities() {
 
   return (
     <section className="admin-page">
-      {/* PHẦN HEADER TRANG */}
+      {/* HEADER */}
       <header className="admin-page__head">
         <div>
           <h1 className="admin-page__title">Tiện ích phòng</h1>
@@ -124,36 +237,86 @@ export default function AdminAmenities() {
           </p>
         </div>
 
-        {/* TODO: sau này mở modal / chuyển sang trang tạo tiện ích mới */}
         <button
           type="button"
           className="admin-btn admin-btn--primary"
-          onClick={() => alert('TODO: mở form tạo tiện ích mới')}
+          onClick={() => setShowCreate(prev => !prev)}
         >
-          + Thêm tiện ích
+          {showCreate ? 'Ẩn form thêm' : '+ Thêm tiện ích'}
         </button>
       </header>
 
-      {/* CARD CHÍNH */}
       <div className="admin-section--card">
-        {/* Thanh search */}
-        <div className="admin-toolbar">
-          <div className="admin-input-wrap admin-input-wrap--search">
-            <span className="admin-input__icon">🔍</span>
-            <input
-              className="admin-input admin-input--search"
-              placeholder="Tìm tiện ích (máy lạnh, WC riêng...)"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </div>
-        </div>
+        {/* FORM THÊM MỚI */}
+        {showCreate && (
+          <div className="admin-create-box">
+            <h3 className="admin-create-box__title">Thêm tiện ích mới</h3>
+            {createError && (
+              <p className="admin-error" style={{ marginBottom: 8 }}>
+                {createError}
+              </p>
+            )}
+            {createSuccess && (
+              <p className="admin-success" style={{ marginBottom: 8 }}>
+                {createSuccess}
+              </p>
+            )}
 
-        {/* Thông báo lỗi / loading */}
+            <form
+              onSubmit={handleCreateAmenity}
+              className="admin-edit-form-inline"
+            >
+              <div className="admin-edit-form__grid">
+                <label className="admin-field">
+                  <span>Tên tiện ích *</span>
+                  <input
+                    className="admin-input"
+                    value={createName}
+                    onChange={e => setCreateName(e.target.value)}
+                    placeholder="Ví dụ: Máy lạnh, WC riêng, chỗ để xe..."
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Slug (có thể để trống)</span>
+                  <input
+                    className="admin-input"
+                    value={createSlug}
+                    onChange={e => setCreateSlug(e.target.value)}
+                    placeholder="may-lanh, wc-rieng..."
+                  />
+                </label>
+              </div>
+
+              <div className="admin-edit-form__actions">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--ghost"
+                  onClick={() => {
+                    setShowCreate(false)
+                    setCreateError('')
+                    setCreateSuccess('')
+                  }}
+                  disabled={creating}
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  className="admin-btn admin-btn--primary"
+                  disabled={creating}
+                >
+                  {creating ? 'Đang lưu...' : 'Thêm tiện ích'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         {error && <p className="admin-error">{error}</p>}
         {loading && <p className="admin-loading">Đang tải tiện ích…</p>}
 
-        {/* Bảng dữ liệu */}
+        {/* BẢNG DỮ LIỆU */}
         <div className="admin-card-table">
           <table className="admin-table admin-table--compact">
             <thead>
@@ -162,46 +325,105 @@ export default function AdminAmenities() {
                 <th>Slug</th>
                 <th>Tên</th>
                 <th>Số bài sử dụng</th>
-                <th style={{ width: 170 }}>Thao tác</th>
+                <th style={{ width: 200 }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {/* Không có dữ liệu */}
               {items.length === 0 && !loading && !error && (
                 <tr>
                   <td colSpan={5} className="admin-empty">
-                    Chưa có tiện ích nào hoặc không tìm thấy kết quả.
+                    Chưa có tiện ích nào.
                   </td>
                 </tr>
               )}
 
-              {/* Data thật từ API */}
-              {items.map((amenity) => (
-                <tr key={amenity.id}>
-                  <td>{amenity.id}</td>
-                  <td>{amenity.slug}</td>
-                  <td>{amenity.name}</td>
-                  <td>{amenity.posts_count ?? 0}</td>
-                  <td className="admin-td-actions">
-                    {/* TODO: thay alert bằng form sửa tiện ích */}
-                    <button
-                      type="button"
-                      className="admin-chip admin-chip--ghost"
-                      onClick={() =>
-                        alert(`TODO: mở form sửa tiện ích #${amenity.id}`)
-                      }
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-chip admin-chip--danger"
-                      onClick={() => handleDelete(amenity.id)}
-                    >
-                      Xoá
-                    </button>
-                  </td>
-                </tr>
+              {items.map(amenity => (
+                <Fragment key={amenity.id}>
+                  {/* HÀNG FORM SỬA – nằm ngay trên tiện ích đang sửa */}
+                  {editingId === amenity.id && (
+                    <tr className="admin-edit-row">
+                      <td colSpan={5}>
+                        {formError && (
+                          <p
+                            className="admin-error"
+                            style={{ marginBottom: 8 }}
+                          >
+                            {formError}
+                          </p>
+                        )}
+
+                        <form
+                          onSubmit={handleSubmitEdit}
+                          className="admin-edit-form-inline"
+                        >
+                          <div className="admin-edit-form__grid">
+                            <label className="admin-field">
+                              <span>Tên tiện ích *</span>
+                              <input
+                                className="admin-input"
+                                value={editName}
+                                onChange={e => setEditName(e.target.value)}
+                                placeholder="Ví dụ: Máy lạnh, WC riêng..."
+                              />
+                            </label>
+
+                            <label className="admin-field">
+                              <span>Slug (có thể để trống)</span>
+                              <input
+                                className="admin-input"
+                                value={editSlug}
+                                onChange={e => setEditSlug(e.target.value)}
+                                placeholder="may-lanh, wc-rieng..."
+                              />
+                            </label>
+                          </div>
+
+                          <div className="admin-edit-form__actions">
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn--ghost"
+                              onClick={handleCancelEdit}
+                              disabled={saving}
+                            >
+                              Huỷ
+                            </button>
+                            <button
+                              type="submit"
+                              className="admin-btn admin-btn--primary"
+                              disabled={saving}
+                            >
+                              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                            </button>
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* HÀNG DỮ LIỆU CHÍNH */}
+                  <tr>
+                    <td>{amenity.id}</td>
+                    <td>{amenity.slug}</td>
+                    <td>{amenity.name}</td>
+                    <td>{amenity.posts_count ?? 0}</td>
+                    <td className="admin-td-actions">
+                      <button
+                        type="button"
+                        className="admin-chip admin-chip--ghost"
+                        onClick={() => handleStartEdit(amenity)}
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-chip admin-chip--danger"
+                        onClick={() => handleDelete(amenity.id)}
+                      >
+                        Xoá
+                      </button>
+                    </td>
+                  </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>
