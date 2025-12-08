@@ -4,6 +4,28 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import '../assets/style/style.css'
 
+// ==== DÙNG CHUNG: Chuẩn hoá mọi kiểu object ảnh thành URL string ====
+function normalizeImageUrl(source) {
+  if (!source) return ''
+  if (typeof source === 'string') return source
+
+  if (source.full_url) return source.full_url
+  if (source.fullUrl) return source.fullUrl
+
+  if (source.url) return source.url
+  if (source.secure_url) return source.secure_url
+
+  if (source.file) {
+    if (source.file.url) return source.file.url
+    if (source.file.secure_url) return source.file.secure_url
+  }
+
+  if (source.image_url) return source.image_url
+  if (source.path) return source.path
+
+  return ''
+}
+
 // ===== CẤU HÌNH API =====
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
@@ -27,6 +49,7 @@ const AREA = [
   { v: '180-999', t: '> 180 m²' },
 ]
 
+// Các nhóm filter ở aside – vẫn để cứng
 const AMENITIES = [
   { k: 'gara', t: 'Gara/đậu xe' },
   { k: 'san-vuon', t: 'Sân vườn' },
@@ -79,7 +102,11 @@ export default function HousesExplore() {
   const { search } = useLocation()
   const qs = new URLSearchParams(search)
 
-  // ===== GIÁ TRỊ KHỞI TẠO TỪ QUERY =====
+  // ===== DANH SÁCH TỈNH / QUẬN TỪ API =====
+  const [provinceList, setProvinceList] = useState([])
+  const [districtList, setDistrictList] = useState([])
+
+  // ===== GIÁ TRỊ KHỞI TẠO TỪ QUERY (ĐÃ ÁP DỤNG) =====
   const initQ = qs.get('q') || ''
   const initProvince = qs.get('province') || ''
   const initDistrict = qs.get('district') || ''
@@ -107,6 +134,10 @@ export default function HousesExplore() {
   const [sort, setSort] = useState(initSort)
   const [page, setPage] = useState(Number(qs.get('page') || 1))
 
+  // label hiển thị chip cho tỉnh / quận
+  const [provinceLabel, setProvinceLabel] = useState('')
+  const [districtLabel, setDistrictLabel] = useState('')
+
   const PAGE_SIZE = 8
 
   const [rawItems, setRawItems] = useState([])
@@ -127,8 +158,52 @@ export default function HousesExplore() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // ===== GỌI API LẤY DANH SÁCH TỈNH =====
+  useEffect(() => {
+    async function loadProvinces() {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/provinces`)
+        const data = res.data.data || res.data
+        setProvinceList(data)
+      } catch (err) {
+        console.error('Lỗi load provinces', err)
+      }
+    }
+    loadProvinces()
+  }, [])
+
+  // ===== GỌI API LẤY DANH SÁCH QUẬN KHI ĐỔI TỈNH (DRAFT) =====
+  useEffect(() => {
+    if (!provinceDraft) {
+      setDistrictList([])
+      setDistrictDraft('')
+      return
+    }
+
+    async function loadDistricts() {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/districts`, {
+          params: { province_id: provinceDraft },
+        })
+        const data = res.data.data || res.data
+        setDistrictList(data)
+      } catch (err) {
+        console.error('Lỗi load districts', err)
+      }
+    }
+
+    loadDistricts()
+  }, [provinceDraft])
+
   // ===== ÁP DỤNG FILTER TỪ DRAFT =====
   const applyFilters = () => {
+    const pObj = provinceList.find(
+      p => String(p.id) === String(provinceDraft),
+    )
+    const dObj = districtList.find(
+      d => String(d.id) === String(districtDraft),
+    )
+
     setQ(qDraft)
     setProvince(provinceDraft)
     setDistrict(districtDraft)
@@ -136,6 +211,10 @@ export default function HousesExplore() {
     setArea(areaDraft)
     setAmen(amenDraft)
     setSort(sortDraft)
+
+    setProvinceLabel(pObj?.name || '')
+    setDistrictLabel(dObj?.name || '')
+
     setPage(1)
   }
 
@@ -150,25 +229,97 @@ export default function HousesExplore() {
           `${API_BASE_URL}/categories/${CATEGORY_ID}/posts`,
         )
 
-        const posts = res.data.posts || res.data.data || []
+        const posts = res.data.posts || res.data.data || res.data || []
 
-        // 🔥 Chỉ giữ bài đã duyệt (published)
         const mapped = posts
           .filter(p => p.status === 'published')
-          .map(p => ({
-            id: p.id,
-            title: p.title,
-            price: Number(p.price) || 0,
-            area: Number(p.area) || 0,
-            addr: p.address || p.full_address || '',
-            img:
-              p.images?.[0]?.url ||
-              'https://via.placeholder.com/400x250?text=No+Image',
-            vip: p.is_vip === 1 || p.vip === 1,
-            time: new Date(p.created_at || Date.now()).toLocaleDateString(
-              'vi-VN',
-            ),
-          }))
+          .map(p => {
+            const candidates = []
+
+            if (p.cover_image) candidates.push(p.cover_image)
+            if (p.main_image_url) candidates.push(p.main_image_url)
+            if (p.thumbnail_url) candidates.push(p.thumbnail_url)
+            if (p.thumbnail) candidates.push(p.thumbnail)
+
+            if (Array.isArray(p.images) && p.images.length > 0) {
+              candidates.push(p.images[0])
+            }
+            if (Array.isArray(p.post_images) && p.post_images.length > 0) {
+              candidates.push(p.post_images[0])
+            }
+
+            let firstImg = ''
+            for (const c of candidates) {
+              const u = normalizeImageUrl(c)
+              if (u) {
+                firstImg = u
+                break
+              }
+            }
+
+            if (!firstImg) {
+              const anyUrl = Object.values(p).find(
+                v => typeof v === 'string' && /^https?:\/\//i.test(v),
+              )
+              if (anyUrl) firstImg = anyUrl
+            }
+
+            if (!firstImg) {
+              firstImg = 'https://via.placeholder.com/400x250?text=No+Image'
+            }
+
+            // Tiện ích gắn với post (nếu backend có)
+            const rawAmenities = Array.isArray(p.amenities)
+              ? p.amenities
+              : Array.isArray(p.post_amenities)
+              ? p.post_amenities
+              : []
+
+            const normalizedAmenities = rawAmenities.map(a => ({
+              id: a.id,
+              name:
+                a.name ||
+                a.label ||
+                a.title ||
+                a.slug ||
+                a.key ||
+                '',
+            }))
+
+            const rawEnv = Array.isArray(p.environment_features)
+              ? p.environment_features
+              : Array.isArray(p.env_features)
+              ? p.env_features
+              : []
+
+            const normalizedEnv = rawEnv.map(e => ({
+              id: e.id,
+              name:
+                e.name ||
+                e.label ||
+                e.title ||
+                e.slug ||
+                e.key ||
+                '',
+            }))
+
+            return {
+              id: p.id,
+              title: p.title,
+              price: Number(p.price) || 0,
+              area: Number(p.area) || 0,
+              addr: p.address || p.full_address || '',
+              img: firstImg,
+              vip: p.is_vip === 1 || p.vip === 1,
+              time: new Date(
+                p.created_at || Date.now(),
+              ).toLocaleDateString('vi-VN'),
+              province_id: p.province_id || null,
+              district_id: p.district_id || null,
+              amenities: normalizedAmenities,
+              env_features: normalizedEnv,
+            }
+          })
 
         setRawItems(mapped)
       } catch (e) {
@@ -187,10 +338,17 @@ export default function HousesExplore() {
     let data = [...rawItems]
 
     if (q) {
-      data = data.filter(d =>
-        d.title.toLowerCase().includes(q.toLowerCase()),
-      )
+      const qLower = q.toLowerCase()
+      data = data.filter(d => d.title.toLowerCase().includes(qLower))
     }
+
+    if (province) {
+      data = data.filter(d => String(d.province_id) === String(province))
+    }
+    if (district) {
+      data = data.filter(d => String(d.district_id) === String(district))
+    }
+
     if (price) {
       const [mi, ma] = price.split('-').map(Number)
       data = data.filter(d => d.price >= mi && d.price <= ma)
@@ -232,8 +390,10 @@ export default function HousesExplore() {
   const chips = useMemo(() => {
     const arr = []
     if (q) arr.push({ k: 'q', t: `"${q}"` })
-    if (province) arr.push({ k: 'province', t: province })
-    if (district) arr.push({ k: 'district', t: district })
+    if (province)
+      arr.push({ k: 'province', t: provinceLabel || 'Tỉnh/Thành' })
+    if (district)
+      arr.push({ k: 'district', t: districtLabel || 'Quận/Huyện' })
     if (price) arr.push({ k: 'price', t: PRICE.find(x => x.v === price)?.t })
     if (area) arr.push({ k: 'area', t: AREA.find(x => x.v === area)?.t })
 
@@ -244,7 +404,7 @@ export default function HousesExplore() {
     })
 
     return arr
-  }, [q, province, district, price, area, amen])
+  }, [q, province, district, price, area, amen, provinceLabel, districtLabel])
 
   const clearChip = (k, v) => {
     if (k === 'q') {
@@ -252,22 +412,17 @@ export default function HousesExplore() {
       setQDraft('')
     }
     if (k === 'province') {
-      setProvince('')
-      setProvinceDraft('')
-      setDistrict('')
-      setDistrictDraft('')
+      setProvince(''); setProvinceDraft(''); setProvinceLabel('')
+      setDistrict(''); setDistrictDraft(''); setDistrictLabel('')
     }
     if (k === 'district') {
-      setDistrict('')
-      setDistrictDraft('')
+      setDistrict(''); setDistrictDraft(''); setDistrictLabel('')
     }
     if (k === 'price') {
-      setPrice('')
-      setPriceDraft('')
+      setPrice(''); setPriceDraft('')
     }
     if (k === 'area') {
-      setArea('')
-      setAreaDraft('')
+      setArea(''); setAreaDraft('')
     }
     if (k === 'amen') {
       setAmen(s => s.filter(x => x !== v))
@@ -277,20 +432,13 @@ export default function HousesExplore() {
   }
 
   const clearAll = () => {
-    setQ('')
-    setQDraft('')
-    setProvince('')
-    setProvinceDraft('')
-    setDistrict('')
-    setDistrictDraft('')
-    setPrice('')
-    setPriceDraft('')
-    setArea('')
-    setAreaDraft('')
-    setAmen([])
-    setAmenDraft([])
-    setSort('new')
-    setSortDraft('new')
+    setQ(''); setQDraft('')
+    setProvince(''); setProvinceDraft(''); setProvinceLabel('')
+    setDistrict(''); setDistrictDraft(''); setDistrictLabel('')
+    setPrice(''); setPriceDraft('')
+    setArea(''); setAreaDraft('')
+    setAmen([]); setAmenDraft([])
+    setSort('new'); setSortDraft('new')
     setPage(1)
   }
 
@@ -335,6 +483,8 @@ export default function HousesExplore() {
                 placeholder="Từ khoá, khu vực, tuyến đường..."
               />
             </div>
+
+            {/* Tỉnh/Thành (API) */}
             <select
               className="re-input"
               value={provinceDraft}
@@ -344,21 +494,28 @@ export default function HousesExplore() {
               }}
             >
               <option value="">Tỉnh/Thành</option>
-              <option>TP. Hồ Chí Minh</option>
-              <option>Hà Nội</option>
-              <option>Đà Nẵng</option>
+              {provinceList.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
             </select>
+
+            {/* Quận/Huyện (API) */}
             <select
               className="re-input"
               value={districtDraft}
               onChange={e => setDistrictDraft(e.target.value)}
+              disabled={!provinceDraft}
             >
               <option value="">Quận/Huyện</option>
-              <option>Quận 1</option>
-              <option>Quận 7</option>
-              <option>Bình Thạnh</option>
-              <option>TP. Thủ Đức</option>
+              {districtList.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
             </select>
+
             <select
               className="re-input"
               value={priceDraft}
@@ -435,37 +592,60 @@ export default function HousesExplore() {
           {error && <p className="re-error">{error}</p>}
 
           <div className="re-grid">
-            {items.map(it => (
-              <article
-                key={it.id}
-                className={'re-card' + (it.vip ? ' is-vip' : '')}
-              >
-                <div className="re-card__media">
-                  <img src={it.img} alt={it.title} />
-                  {it.vip && <span className="re-badge">VIP</span>}
-                </div>
-                <div className="re-card__body">
-                  <h3 className="re-card__title" title={it.title}>
-                    {it.title}
-                  </h3>
-                  <div className="re-card__meta">
-                    <span className="price">
-                      {it.price?.toLocaleString()} ₫/tháng
-                    </span>
-                    <span className="dot">•</span>
-                    <span>{it.area} m²</span>
-                    <span className="dot">•</span>
-                    <span>{it.addr}</span>
+            {items.map(it => {
+              const amenToShow =
+                (it.amenities && it.amenities.length
+                  ? it.amenities
+                  : it.env_features || []
+                ).slice(0, 3)
+
+              return (
+                <article
+                  key={it.id}
+                  className={'re-card' + (it.vip ? ' is-vip' : '')}
+                >
+                  <div className="re-card__media">
+                    <img src={it.img} alt={it.title} />
+                    {it.vip && <span className="re-badge">VIP</span>}
                   </div>
-                  <div className="re-card__foot">
-                    <span className="time">{it.time}</span>
-                    <Link to={`/post/${it.id}`} className="re-btn re-btn--line">
-                      Xem chi tiết
-                    </Link>
+                  <div className="re-card__body">
+                    <h3 className="re-card__title" title={it.title}>
+                      {it.title}
+                    </h3>
+                    <div className="re-card__meta">
+                      <span className="price">
+                        {it.price?.toLocaleString()} ₫/tháng
+                      </span>
+                      <span className="dot">•</span>
+                      <span>{it.area} m²</span>
+                      <span className="dot">•</span>
+                      <span>{it.addr}</span>
+                    </div>
+
+                    {/* TIỆN ÍCH NGAY DƯỚI META */}
+                    {amenToShow.length > 0 && (
+                      <div className="re-card__amen">
+                        {amenToShow.map(a => (
+                          <span
+                            key={a.id || a.name}
+                            className="re-card__tag"
+                          >
+                            {a.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="re-card__foot">
+                      <span className="time">{it.time}</span>
+                      <Link to={`/post/${it.id}`} className="re-btn re-btn--line">
+                        Xem chi tiết
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
 
           {/* PHÂN TRANG */}
@@ -504,67 +684,6 @@ export default function HousesExplore() {
         <aside className="re-aside">
           <div className="re-filtercard">
             <h3>Bộ lọc nhanh</h3>
-
-            <div className="re-field">
-              <label>Tỉnh/Thành</label>
-              <select
-                value={provinceDraft}
-                onChange={e => {
-                  setProvinceDraft(e.target.value)
-                  setDistrictDraft('')
-                }}
-              >
-                <option value="">Tất cả</option>
-                <option>TP. Hồ Chí Minh</option>
-                <option>Hà Nội</option>
-                <option>Đà Nẵng</option>
-              </select>
-            </div>
-
-            <div className="re-field">
-              <label>Quận/Huyện</label>
-              <select
-                value={districtDraft}
-                onChange={e => {
-                  setDistrictDraft(e.target.value)
-                }}
-              >
-                <option value="">Tất cả</option>
-                <option>Quận 1</option>
-                <option>Quận 7</option>
-                <option>Bình Thạnh</option>
-                <option>TP. Thủ Đức</option>
-              </select>
-            </div>
-
-            <div className="re-field">
-              <label>Mức giá</label>
-              <select
-                value={priceDraft}
-                onChange={e => setPriceDraft(e.target.value)}
-              >
-                {PRICE.map(o => (
-                  <option key={o.v} value={o.v}>
-                    {o.t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="re-field">
-              <label>Diện tích</label>
-              <select
-                value={areaDraft}
-                onChange={e => setAreaDraft(e.target.value)}
-              >
-                {AREA.map(o => (
-                  <option key={o.v} value={o.v}>
-                    {o.t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div className="re-field">
               <label>Tiện ích</label>
               <div className="re-checklist">

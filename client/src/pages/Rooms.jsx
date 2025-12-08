@@ -4,6 +4,28 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import '../assets/style/style.css'
 
+// ==== DÙNG CHUNG: Chuẩn hoá mọi kiểu object ảnh thành URL string ====
+function normalizeImageUrl(source) {
+  if (!source) return ''
+  if (typeof source === 'string') return source
+
+  if (source.full_url) return source.full_url
+  if (source.fullUrl) return source.fullUrl
+
+  if (source.url) return source.url
+  if (source.secure_url) return source.secure_url
+
+  if (source.file) {
+    if (source.file.url) return source.file.url
+    if (source.file.secure_url) return source.file.secure_url
+  }
+
+  if (source.image_url) return source.image_url
+  if (source.path) return source.path
+
+  return ''
+}
+
 // ===== CẤU HÌNH API BASE URL =====
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
@@ -27,24 +49,7 @@ const AREA = [
   { v: '60-999', t: '> 60 m²' },
 ]
 
-const AMENITIES = [
-  { k: 'co-gac', t: 'Có gác' },
-  { k: 'wc-rieng', t: 'WC riêng' },
-  { k: 'khu-bep', t: 'Có khu bếp' },
-  { k: 'may-lanh', t: 'Máy lạnh' },
-  { k: 'ban-cong', t: 'Ban công/cửa sổ' },
-  { k: 'giu-xe', t: 'Giữ xe' },
-]
-
-const environment = [
-  { k: 'gan-truong', t: 'Gần trường học' },
-  { k: 'gan-cho', t: 'Gần chợ' },
-  { k: 'gan-bv', t: 'Gần bệnh viện' },
-  { k: 'ben-xe-bus', t: 'Bến xe bus' },
-  { k: 'sieu-thi', t: 'Siêu thị / TTTM' },
-  { k: 'khu-an-ninh', t: 'Khu an ninh' },
-]
-
+// 2 nhóm này vẫn để cứng
 const member = [
   { k: 'sinh-vien', t: 'Sinh viên' },
   { k: 'nhan-vien-vp', t: 'Nhân viên văn phòng' },
@@ -108,6 +113,10 @@ export default function RoomsExplore() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // ==== OPTIONS TỪ BACKEND (amenities + environment) ====
+  const [amenityOptions, setAmenityOptions] = useState([])
+  const [envOptions, setEnvOptions] = useState([])
+
   // ==== STICKY BAR ====
   const barRef = useRef(null)
   useEffect(() => {
@@ -157,6 +166,34 @@ export default function RoomsExplore() {
     loadDistricts()
   }, [province])
 
+  // ===== LẤY LIST TIỆN ÍCH & ĐẶC ĐIỂM MÔI TRƯỜNG TỪ API =====
+  useEffect(() => {
+    const normalizeOptions = raw =>
+      (raw || []).map(item => ({
+        k: item.slug || item.key || String(item.id),
+        t: item.name || item.label || item.title || '',
+      }))
+
+    async function loadOptions() {
+      try {
+        const [amenRes, envRes] = await Promise.all([
+          axios.get(`${API_BASE_URL}/amenities`),
+          axios.get(`${API_BASE_URL}/environment-features`),
+        ])
+
+        const amenData = amenRes.data.data || amenRes.data
+        const envData = envRes.data.data || envRes.data
+
+        setAmenityOptions(normalizeOptions(amenData))
+        setEnvOptions(normalizeOptions(envData))
+      } catch (err) {
+        console.error('Lỗi load amenities / environment-features', err)
+      }
+    }
+
+    loadOptions()
+  }, [])
+
   // ===== LẤY DANH SÁCH PHÒNG (CATEGORY_ID = 1) =====
   useEffect(() => {
     async function loadRooms() {
@@ -173,22 +210,93 @@ export default function RoomsExplore() {
         // 🔥 chỉ lấy bài đã duyệt (published)
         const mapped = posts
           .filter(p => p.status === 'published')
-          .map(p => ({
-            id: p.id,
-            title: p.title,
-            price: Number(p.price) || 0,
-            area: Number(p.area) || 0,
-            addr: p.address || p.full_address || '',
-            img:
-              p.images?.[0]?.url ||
-              'https://via.placeholder.com/400x250?text=No+Image',
-            vip: p.is_vip === 1 || p.vip === 1,
-            time: new Date(p.created_at || Date.now()).toLocaleDateString(
-              'vi-VN',
-            ),
-            province_id: p.province_id || null,
-            district_id: p.district_id || null,
-          }))
+          .map(p => {
+            // chọn ảnh
+            const candidates = []
+            if (p.cover_image) candidates.push(p.cover_image)
+            if (p.main_image_url) candidates.push(p.main_image_url)
+            if (p.thumbnail_url) candidates.push(p.thumbnail_url)
+            if (p.thumbnail) candidates.push(p.thumbnail)
+
+            if (Array.isArray(p.images) && p.images.length > 0) {
+              candidates.push(p.images[0])
+            }
+            if (Array.isArray(p.post_images) && p.post_images.length > 0) {
+              candidates.push(p.post_images[0])
+            }
+
+            let firstImg = ''
+            for (const c of candidates) {
+              const u = normalizeImageUrl(c)
+              if (u) {
+                firstImg = u
+                break
+              }
+            }
+
+            if (!firstImg) {
+              const anyUrl = Object.values(p).find(
+                v => typeof v === 'string' && /^https?:\/\//i.test(v),
+              )
+              if (anyUrl) firstImg = anyUrl
+            }
+
+            if (!firstImg) {
+              firstImg = 'https://via.placeholder.com/400x250?text=No+Image'
+            }
+
+            // tiện ích gắn với post
+            const rawAmenities = Array.isArray(p.amenities)
+              ? p.amenities
+              : Array.isArray(p.post_amenities)
+              ? p.post_amenities
+              : []
+
+            const normalizedAmenities = rawAmenities.map(a => ({
+              id: a.id,
+              name:
+                a.name ||
+                a.label ||
+                a.title ||
+                a.slug ||
+                a.key ||
+                '',
+            }))
+
+            const rawEnv = Array.isArray(p.environment_features)
+              ? p.environment_features
+              : Array.isArray(p.env_features)
+              ? p.env_features
+              : []
+
+            const normalizedEnv = rawEnv.map(e => ({
+              id: e.id,
+              name:
+                e.name ||
+                e.label ||
+                e.title ||
+                e.slug ||
+                e.key ||
+                '',
+            }))
+
+            return {
+              id: p.id,
+              title: p.title,
+              price: Number(p.price) || 0,
+              area: Number(p.area) || 0,
+              addr: p.address || p.full_address || '',
+              img: firstImg,
+              vip: p.is_vip === 1 || p.vip === 1,
+              time: new Date(
+                p.created_at || Date.now(),
+              ).toLocaleDateString('vi-VN'),
+              province_id: p.province_id || null,
+              district_id: p.district_id || null,
+              amenities: normalizedAmenities,
+              env_features: normalizedEnv,
+            }
+          })
 
         setRawItems(mapped)
       } catch (err) {
@@ -270,14 +378,26 @@ export default function RoomsExplore() {
     if (price) arr.push({ k: 'price', t: PRICE.find(x => x.v === price)?.t })
     if (area) arr.push({ k: 'area', t: AREA.find(x => x.v === area)?.t })
 
-    const amenLabelPool = [...AMENITIES, ...environment, ...member, ...policy]
+    const amenLabelPool = [...amenityOptions, ...envOptions, ...member, ...policy]
     amen.forEach(a => {
       const label = amenLabelPool.find(x => x.k === a)?.t || a
       arr.push({ k: 'amen', v: a, t: label })
     })
 
     return arr
-  }, [appliedVersion, provinceList, districtList, q, province, district, price, area, amen])
+  }, [
+    appliedVersion,
+    provinceList,
+    districtList,
+    q,
+    province,
+    district,
+    price,
+    area,
+    amen,
+    amenityOptions,
+    envOptions,
+  ])
 
   const clearChip = (k, v) => {
     if (k === 'q') setQ('')
@@ -446,44 +566,74 @@ export default function RoomsExplore() {
           <header className="re-results__head">
             <div>
               <h2>Phòng trọ</h2>
-              {loading ? <p>Đang tải...</p> : <p>{total.toLocaleString()} tin phù hợp</p>}
+              {loading ? (
+                <p>Đang tải...</p>
+              ) : (
+                <p>{total.toLocaleString()} tin phù hợp</p>
+              )}
             </div>
           </header>
 
           {error && <p className="re-error">{error}</p>}
 
           <div className="re-grid">
-            {items.map(it => (
-              <article
-                key={it.id}
-                className={'re-card' + (it.vip ? ' is-vip' : '')}
-              >
-                <div className="re-card__media">
-                  <img src={it.img} alt={it.title} />
-                  {it.vip && <span className="re-badge">VIP</span>}
-                </div>
-                <div className="re-card__body">
-                  <h3 className="re-card__title" title={it.title}>
-                    {it.title}
-                  </h3>
-                  <div className="re-card__meta">
-                    <span className="price">
-                      {it.price?.toLocaleString()} ₫/tháng
-                    </span>
-                    <span className="dot">•</span>
-                    <span>{it.area} m²</span>
-                    <span className="dot">•</span>
-                    <span>{it.addr}</span>
+            {items.map(it => {
+              const amenToShow =
+                (it.amenities && it.amenities.length
+                  ? it.amenities
+                  : it.env_features || []
+                ).slice(0, 3)
+
+              return (
+                <article
+                  key={it.id}
+                  className={'re-card' + (it.vip ? ' is-vip' : '')}
+                >
+                  <div className="re-card__media">
+                    <img src={it.img} alt={it.title} />
+                    {it.vip && <span className="re-badge">VIP</span>}
                   </div>
-                  <div className="re-card__foot">
-                    <span className="time">{it.time}</span>
-                    <Link to={`/post/${it.id}`} className="re-btn re-btn--line">
-                      Xem chi tiết
-                    </Link>
+                  <div className="re-card__body">
+                    <h3 className="re-card__title" title={it.title}>
+                      {it.title}
+                    </h3>
+                    <div className="re-card__meta">
+                      <span className="price">
+                        {it.price?.toLocaleString()} ₫/tháng
+                      </span>
+                      <span className="dot">•</span>
+                      <span>{it.area} m²</span>
+                      <span className="dot">•</span>
+                      <span>{it.addr}</span>
+                    </div>
+
+                    {/* TIỆN ÍCH HIỂN THỊ NGAY DƯỚI META */}
+                    {amenToShow.length > 0 && (
+                      <div className="re-card__amen">
+                        {amenToShow.map(a => (
+                          <span
+                            key={a.id || a.name}
+                            className="re-card__tag"
+                          >
+                            {a.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="re-card__foot">
+                      <span className="time">{it.time}</span>
+                      <Link
+                        to={`/post/${it.id}`}
+                        className="re-btn re-btn--line"
+                      >
+                        Xem chi tiết
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
 
           {/* PHÂN TRANG */}
@@ -523,38 +673,12 @@ export default function RoomsExplore() {
           <div className="re-filtercard">
             <h3>Bộ lọc nhanh</h3>
 
-            <div className="re-field">
-              <label>Mức giá</label>
-              <select
-                value={price}
-                onChange={e => setPrice(e.target.value)}
-              >
-                {PRICE.map(o => (
-                  <option key={o.v} value={o.v}>
-                    {o.t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="re-field">
-              <label>Diện tích</label>
-              <select
-                value={area}
-                onChange={e => setArea(e.target.value)}
-              >
-                {AREA.map(o => (
-                  <option key={o.v} value={o.v}>
-                    {o.t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            
 
             <div className="re-field">
               <label>Tiện ích</label>
               <div className="re-checklist">
-                {AMENITIES.map(a => (
+                {amenityOptions.map(a => (
                   <label key={a.k} className="re-check">
                     <input
                       type="checkbox"
@@ -570,7 +694,7 @@ export default function RoomsExplore() {
             <div className="re-field">
               <label>Môi trường xung quanh</label>
               <div className="re-checklist">
-                {environment.map(a => (
+                {envOptions.map(a => (
                   <label key={a.k} className="re-check">
                     <input
                       type="checkbox"

@@ -81,7 +81,6 @@ const policy = [
   { k: 'nuoi-thu-cung', t: 'Nuôi thú cưng' },
 ]
 
-/** Helper: danh sách trang có “…” */
 function pageList(totalPages, current) {
   const delta = 1
   const range = []
@@ -135,7 +134,6 @@ export default function ApartmentsExplore() {
   const [sort, setSort] = useState(initSort)
   const [page, setPage] = useState(Number(qs.get('page') || 1))
 
-  // label để hiển thị chip (tránh bị đổi khi đang chọn draft mới)
   const [provinceLabel, setProvinceLabel] = useState('')
   const [districtLabel, setDistrictLabel] = useState('')
 
@@ -148,7 +146,6 @@ export default function ApartmentsExplore() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // sticky shadow cho thanh filter-top
   const barRef = useRef(null)
   useEffect(() => {
     const onScroll = () => {
@@ -211,7 +208,6 @@ export default function ApartmentsExplore() {
         const posts = res.data.posts || res.data.data || res.data || []
 
         const mapped = posts.map(p => {
-          // gom mọi “nguồn ảnh” có thể có trên post
           const candidates = []
 
           if (p.cover_image) candidates.push(p.cover_image)
@@ -220,13 +216,12 @@ export default function ApartmentsExplore() {
           if (p.thumbnail) candidates.push(p.thumbnail)
 
           if (Array.isArray(p.images) && p.images.length > 0) {
-            candidates.push(p.images[0]) // chỉ lấy ảnh đầu tiên
+            candidates.push(p.images[0])
           }
           if (Array.isArray(p.post_images) && p.post_images.length > 0) {
-            candidates.push(p.post_images[0]) // nếu API trả kiểu khác
+            candidates.push(p.post_images[0])
           }
 
-          // chọn URL đầu tiên hợp lệ
           let firstImg = ''
           for (const c of candidates) {
             const u = normalizeImageUrl(c)
@@ -236,7 +231,6 @@ export default function ApartmentsExplore() {
             }
           }
 
-          // fallback: tự quét field string nào là URL http(s)
           if (!firstImg) {
             const anyUrl = Object.values(p).find(
               v => typeof v === 'string' && /^https?:\/\//i.test(v),
@@ -244,10 +238,44 @@ export default function ApartmentsExplore() {
             if (anyUrl) firstImg = anyUrl
           }
 
-          // fallback cuối cùng: placeholder
           if (!firstImg) {
             firstImg = 'https://via.placeholder.com/400x250?text=No+Image'
           }
+
+          // Lấy tiện ích gắn với bài viết (nếu backend trả về)
+          const rawAmenities = Array.isArray(p.amenities)
+            ? p.amenities
+            : Array.isArray(p.post_amenities)
+            ? p.post_amenities
+            : []
+
+          const normalizedAmenities = rawAmenities.map(a => ({
+            id: a.id,
+            name:
+              a.name ||
+              a.label ||
+              a.title ||
+              a.slug ||
+              a.key ||
+              '',
+          }))
+
+          const rawEnv = Array.isArray(p.environment_features)
+            ? p.environment_features
+            : Array.isArray(p.env_features)
+            ? p.env_features
+            : []
+
+          const normalizedEnv = rawEnv.map(e => ({
+            id: e.id,
+            name:
+              e.name ||
+              e.label ||
+              e.title ||
+              e.slug ||
+              e.key ||
+              '',
+          }))
 
           return {
             id: p.id,
@@ -262,6 +290,8 @@ export default function ApartmentsExplore() {
             ).toLocaleDateString('vi-VN'),
             province_id: p.province_id || null,
             district_id: p.district_id || null,
+            amenities: normalizedAmenities,
+            env_features: normalizedEnv,
           }
         })
 
@@ -277,9 +307,8 @@ export default function ApartmentsExplore() {
     fetchData()
   }, [])
 
-  // ===== ÁP DỤNG FILTER TỪ DRAFT (TÌM / ÁP DỤNG) =====
+  // ===== ÁP DỤNG FILTER TỪ DRAFT =====
   const applyFilters = () => {
-    // tìm label theo danh sách hiện tại
     const pObj = provinceList.find(
       p => String(p.id) === String(provinceDraft),
     )
@@ -301,7 +330,7 @@ export default function ApartmentsExplore() {
     setPage(1)
   }
 
-  // ===== FILTER + SORT + PAGINATE (dùng state đã ÁP DỤNG) =====
+  // ===== FILTER + SORT + PAGINATE =====
   useEffect(() => {
     let data = [...rawItems]
 
@@ -329,14 +358,13 @@ export default function ApartmentsExplore() {
     if (sort === 'price_asc') data.sort((a, b) => a.price - b.price)
     else if (sort === 'price_desc') data.sort((a, b) => b.price - a.price)
     else if (sort === 'area_desc') data.sort((a, b) => b.area - a.area)
-    // sort === 'new' giữ thứ tự mặc định
 
     setTotal(data.length)
     const start = (page - 1) * PAGE_SIZE
     setItems(data.slice(start, start + PAGE_SIZE))
   }, [rawItems, q, province, district, price, area, amen, sort, page])
 
-  // ===== SYNC QUERY LÊN URL (sau khi đã áp dụng) =====
+  // ===== SYNC QUERY LÊN URL =====
   useEffect(() => {
     const p = new URLSearchParams()
     if (q) p.set('q', q)
@@ -350,7 +378,6 @@ export default function ApartmentsExplore() {
     nav({ search: p.toString() })
   }, [q, province, district, price, area, amen, sort, page, nav])
 
-  // checkbox – chỉ đổi draft
   const toggleAmenDraft = k => {
     setAmenDraft(s => (s.includes(k) ? s.filter(x => x !== k) : [...s, k]))
   }
@@ -565,68 +592,64 @@ export default function ApartmentsExplore() {
           {error && <p className="re-error">{error}</p>}
 
           <div className="re-grid">
-  {items.map(it => {
-    // ưu tiên amenities, nếu không có thì dùng env_features
-    const amenToShow =
-      (it.amenities && it.amenities.length
-        ? it.amenities
-        : it.env_features || []
-      ).slice(0, 3)
+            {items.map(it => {
+              const amenToShow =
+                (it.amenities && it.amenities.length
+                  ? it.amenities
+                  : it.env_features || []
+                ).slice(0, 3)
 
-    return (
-      <article
-        key={it.id}
-        className={'re-card' + (it.vip ? ' is-vip' : '')}
-      >
-        <div className="re-card__media">
-          <img src={it.img} alt={it.title} />
-          {it.vip && <span className="re-badge">VIP</span>}
-        </div>
-        <div className="re-card__body">
-          <h3 className="re-card__title" title={it.title}>
-            {it.title}
-          </h3>
-
-          {/* DÒNG GIÁ – DIỆN TÍCH – ĐỊA CHỈ */}
-          <div className="re-card__meta">
-            <span className="price">
-              {it.price?.toLocaleString()} ₫/tháng
-            </span>
-            <span className="dot">•</span>
-            <span>{it.area} m²</span>
-            <span className="dot">•</span>
-            <span>{it.addr}</span>
-          </div>
-
-          {/* TIỆN ÍCH NGAY DƯỚI META  */}
-          {amenToShow.length > 0 && (
-            <div className="re-card__amen">
-              {amenToShow.map(a => (
-                <span
-                  key={a.id || a.name}
-                  className="re-card__tag"
+              return (
+                <article
+                  key={it.id}
+                  className={'re-card' + (it.vip ? ' is-vip' : '')}
                 >
-                  {a.name}
-                </span>
-              ))}
-            </div>
-          )}
+                  <div className="re-card__media">
+                    <img src={it.img} alt={it.title} />
+                    {it.vip && <span className="re-badge">VIP</span>}
+                  </div>
+                  <div className="re-card__body">
+                    <h3 className="re-card__title" title={it.title}>
+                      {it.title}
+                    </h3>
 
-          <div className="re-card__foot">
-            <span className="time">{it.time}</span>
-            <Link
-              to={`/post/${it.id}`}
-              className="re-btn re-btn--line"
-            >
-              Xem chi tiết
-            </Link>
+                    <div className="re-card__meta">
+                      <span className="price">
+                        {it.price?.toLocaleString()} ₫/tháng
+                      </span>
+                      <span className="dot">•</span>
+                      <span>{it.area} m²</span>
+                      <span className="dot">•</span>
+                      <span>{it.addr}</span>
+                    </div>
+
+                    {amenToShow.length > 0 && (
+                      <div className="re-card__amen">
+                        {amenToShow.map(a => (
+                          <span
+                            key={a.id || a.name}
+                            className="re-card__tag"
+                          >
+                            {a.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="re-card__foot">
+                      <span className="time">{it.time}</span>
+                      <Link
+                        to={`/post/${it.id}`}
+                        className="re-btn re-btn--line"
+                      >
+                        Xem chi tiết
+                      </Link>
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
           </div>
-        </div>
-      </article>
-    )
-  })}
-</div>
-
 
           {/* PHÂN TRANG */}
           <nav className="re-paging" aria-label="pagination">
@@ -664,6 +687,7 @@ export default function ApartmentsExplore() {
         <aside className="re-aside">
           <div className="re-filtercard">
             <h3>Bộ lọc nhanh</h3>
+
             <div className="re-field">
               <label>Tiện ích</label>
               <div className="re-checklist">

@@ -27,24 +27,7 @@ const AREA = [
   { v: '60-999', t: '> 60 m²' },
 ]
 
-const AMENITIES = [
-  { k: 'giuong-tang', t: 'Giường tầng' },
-  { k: 'may-lanh', t: 'Máy lạnh' },
-  { k: 'wc-chung', t: 'WC chung' },
-  { k: 'wc-rieng', t: 'WC riêng' },
-  { k: 'wifi', t: 'WiFi miễn phí' },
-  { k: 'giu-xe', t: 'Giữ xe' },
-  { k: 'may-giat', t: 'Máy giặt' },
-]
-
-const environment = [
-  { k: 'gan-truong', t: 'Gần trường' },
-  { k: 'gan-cho', t: 'Gần chợ' },
-  { k: 'gan-bv', t: 'Gần bệnh viện' },
-  { k: 'ben-xe-bus', t: 'Gần trạm bus' },
-  { k: 'khu-an-ninh', t: 'Khu an ninh' },
-]
-
+// 2 nhóm này chưa có API riêng nên vẫn để cứng
 const member = [
   { k: 'sinh-vien', t: 'Sinh viên' },
   { k: 'nu-uu-tien', t: 'Ưu tiên nữ' },
@@ -109,6 +92,10 @@ export default function DormsExplore() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // ==== OPTIONS TỪ BACKEND (amenities + environment) ====
+  const [amenityOptions, setAmenityOptions] = useState([])
+  const [envOptions, setEnvOptions] = useState([])
+
   // sticky shadow cho thanh filter-top
   const barRef = useRef(null)
   useEffect(() => {
@@ -157,6 +144,34 @@ export default function DormsExplore() {
 
     loadDistricts()
   }, [province])
+
+  // ===== LẤY LIST TIỆN ÍCH & ĐẶC ĐIỂM MÔI TRƯỜNG TỪ API =====
+  useEffect(() => {
+    const normalizeOptions = raw =>
+      (raw || []).map(item => ({
+        k: item.slug || item.key || String(item.id),
+        t: item.name || item.label || item.title || '',
+      }))
+
+    async function loadOptions() {
+      try {
+        const [amenRes, envRes] = await Promise.all([
+          axios.get(`${API_BASE_URL}/amenities`),
+          axios.get(`${API_BASE_URL}/environment-features`),
+        ])
+
+        const amenData = amenRes.data.data || amenRes.data
+        const envData = envRes.data.data || envRes.data
+
+        setAmenityOptions(normalizeOptions(amenData))
+        setEnvOptions(normalizeOptions(envData))
+      } catch (err) {
+        console.error('Lỗi load amenities / environment-features', err)
+      }
+    }
+
+    loadOptions()
+  }, [])
 
   // ===== GỌI API LẤY DANH SÁCH DORM (CATEGORY_ID = 4) =====
   useEffect(() => {
@@ -236,7 +251,7 @@ export default function DormsExplore() {
     setTotal(data.length)
     const start = (page - 1) * PAGE_SIZE
     setItems(data.slice(start, start + PAGE_SIZE))
-  }, [rawItems, appliedVersion, page])
+  }, [rawItems, appliedVersion, page, q, province, district, price, area, sort])
 
   // ===== SYNC QUERY LÊN URL (sau khi APPLY) =====
   useEffect(() => {
@@ -250,7 +265,7 @@ export default function DormsExplore() {
     if (sort !== 'new') p.set('sort', sort)
     if (page > 1) p.set('page', String(page))
     nav({ search: p.toString() })
-  }, [appliedVersion, page, nav])
+  }, [appliedVersion, page, nav, q, province, district, price, area, amen, sort])
 
   const toggleAmen = k => {
     setAmen(s => (s.includes(k) ? s.filter(x => x !== k) : [...s, k]))
@@ -271,7 +286,12 @@ export default function DormsExplore() {
     if (price) arr.push({ k: 'price', t: PRICE.find(x => x.v === price)?.t })
     if (area) arr.push({ k: 'area', t: AREA.find(x => x.v === area)?.t })
 
-    const amenLabelPool = [...AMENITIES, ...environment, ...member, ...policy]
+    const amenLabelPool = [
+      ...amenityOptions,
+      ...envOptions,
+      ...member,
+      ...policy,
+    ]
     amen.forEach(a => {
       const label = amenLabelPool.find(x => x.k === a)?.t || a
       arr.push({ k: 'amen', v: a, t: label })
@@ -288,6 +308,8 @@ export default function DormsExplore() {
     price,
     area,
     amen,
+    amenityOptions,
+    envOptions,
   ])
 
   const clearChip = (k, v) => {
@@ -296,7 +318,9 @@ export default function DormsExplore() {
     if (k === 'district') setDistrict('')
     if (k === 'price') setPrice('')
     if (k === 'area') setArea('')
+
     if (k === 'amen') setAmen(s => s.filter(x => x !== v))
+
     setPage(1)
     setAppliedVersion(ver => ver + 1)
   }
@@ -542,67 +566,11 @@ export default function DormsExplore() {
         <aside className="re-aside">
           <div className="re-filtercard">
             <h3>Bộ lọc nhanh</h3>
-
-            <div className="re-field">
-              <label>Tỉnh/Thành</label>
-              <select
-                value={province}
-                onChange={e => {
-                  setProvince(e.target.value)
-                  setDistrict('')
-                }}
-              >
-                <option value="">Tất cả</option>
-                {provinceList.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="re-field">
-              <label>Quận/Huyện</label>
-              <select
-                value={district}
-                onChange={e => setDistrict(e.target.value)}
-                disabled={!province}
-              >
-                <option value="">Tất cả</option>
-                {districtList.map(d => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="re-field">
-              <label>Mức giá</label>
-              <select value={price} onChange={e => setPrice(e.target.value)}>
-                {PRICE.map(o => (
-                  <option key={o.v} value={o.v}>
-                    {o.t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="re-field">
-              <label>Diện tích</label>
-              <select value={area} onChange={e => setArea(e.target.value)}>
-                {AREA.map(o => (
-                  <option key={o.v} value={o.v}>
-                    {o.t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+ 
             <div className="re-field">
               <label>Tiện ích</label>
               <div className="re-checklist">
-                {AMENITIES.map(a => (
+                {amenityOptions.map(a => (
                   <label key={a.k} className="re-check">
                     <input
                       type="checkbox"
@@ -618,7 +586,7 @@ export default function DormsExplore() {
             <div className="re-field">
               <label>Môi trường xung quanh</label>
               <div className="re-checklist">
-                {environment.map(a => (
+                {envOptions.map(a => (
                   <label key={a.k} className="re-check">
                     <input
                       type="checkbox"

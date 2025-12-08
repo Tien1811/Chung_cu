@@ -1,15 +1,18 @@
 @import './pages/Homes.css';
 @import './pages/4page.css';
 @import './pages/review.css';
- 
 
-/* Màu dùng cho background gradient toàn site */
+/* =========================
+   THEME GLOBAL
+   ========================= */
 :root {
   --homes-bg1: #020617;
   --homes-bg2: #0b1120;
 }
 
-/* Reset & base */
+/* =========================
+   RESET & BASE
+   ========================= */
 * {
   box-sizing: border-box;
 }
@@ -22,23 +25,23 @@ body,
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
-
-  /* chữ mặc định hơi sáng để hợp nền tối */
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans",
+    "Helvetica Neue", sans-serif;
   color: #e5e7eb;
 
-  /* NỀN GRADIENT CHO TẤT CẢ CÁC TRANG */
+  /* nền gradient toàn site */
   background:
     radial-gradient(circle at 100%, #1f2937 0, transparent 100%),
-    radial-gradient(circle at   100%, #0ea5e9 0, transparent 50%),
+    radial-gradient(circle at 100%, #0ea5e9 0, transparent 50%),
     linear-gradient(135deg, var(--homes-bg1), var(--homes-bg2));
 
-  /* tránh tràn ngang nếu có phần tử hơi rộng */
   max-width: 100vw;
   overflow-x: hidden;
 }
 
-/* Layout */
+/* =========================
+   LAYOUT CƠ BẢN
+   ========================= */
 .container {
   width: 100%;
   max-width: 1200px;
@@ -56,14 +59,14 @@ body {
   flex-direction: column;
 }
 
-/* Header – nền tối, trong suốt nhẹ theo body */
+/* =========================
+   HEADER
+   ========================= */
 .site-header {
   position: sticky;
   top: 0;
   left: 0;
   right: 0;
-
-  /* nền tối, hơi trong để vẫn thấy gradient phía sau */
   background: linear-gradient(
     to right,
     rgba(15, 23, 42, 0.96),
@@ -72,9 +75,8 @@ body {
   border-bottom: 1px solid rgba(148, 163, 184, 0.5);
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(10px);
-
   z-index: 50;
-  color: #e5e7eb; /* chữ sáng */
+  color: #e5e7eb;
 }
 
 .site-header__inner {
@@ -90,6 +92,9 @@ body {
   color: #f9fafb;
   font-weight: 700;
   font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .brand img {
@@ -97,11 +102,14 @@ body {
   width: 60px;
 }
 
-.nav { position: relative;
+/* NAV + VIÊN THUỐC */
+.nav {
+  position: relative;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .nav__indicator {
   position: absolute;
   top: 50%;
@@ -120,20 +128,29 @@ body {
     opacity 0.2s ease;
   z-index: 0;
 }
+
 .nav__link {
   text-decoration: none;
-  color: #cbd5f5; /* chữ nhạt trên nền tối */
+  color: #cbd5f5;
   padding: 8px 12px;
   border-radius: 999px;
   font-weight: 600;
-  font-size: 16px;position: relative;
+  font-size: 16px;
+  position: relative;
   z-index: 1;
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
+
+.nav__link:hover {
+  color: #f9fafb;
+}
+
+/* AUTH USER + AVATAR + DROPDOWN */
 .header-auth-user {
   position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .header-avatar-btn {
@@ -143,21 +160,29 @@ body {
   cursor: pointer;
 }
 
+/* avatar tròn + ảnh hoặc chữ cái đầu */
 .header-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 15px;
-  color: #f9fafb;
-  background: radial-gradient(circle at 0 0, #38bdf8, #0f172a);
+  font-weight: 700;
+  font-size: 14px;
+  background: linear-gradient(135deg, #38bdf8, #22c55e);
+  color: #0f172a;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.9);
 }
 
-/* Dropdown */
+.header-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .header-menu {
   position: absolute;
   right: 0;
@@ -181,25 +206,24 @@ body {
 }
 
 .header-menu__avatar {
-  width: 40px;             /* chỉnh kích thước avatar ở đây */
+  width: 40px;
   height: 40px;
   border-radius: 50%;
-  overflow: hidden;        /* ẩn phần ảnh thừa */
-  flex-shrink: 0;          /* không cho nó co/giãn theo flex */
+  overflow: hidden;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0f172a;     /* màu nền khi chưa có ảnh */
+  background: #0f172a;
 }
 
 .header-menu__avatar img {
   width: 100%;
   height: 100%;
-  object-fit: cover;       /* cắt vừa khung, không méo */
+  object-fit: cover;
   display: block;
 }
 
-/* Nếu avatarChar là <span> thì style cho chữ chữ cái đầu */
 .header-menu__avatar span {
   font-size: 18px;
   font-weight: 600;
@@ -248,44 +272,14 @@ body {
   background: rgba(153, 27, 27, 0.9);
 }
 
-.header-auth-user {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 14px;
-  background: linear-gradient(135deg, #38bdf8, #22c55e);
-  color: #0f172a;
-}
-.header-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: hidden;
-}
-
-.header-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 .site-header__actions {
   display: flex;
   gap: 8px;
 }
 
-/* Buttons trong header cũng tối cho khớp */
+/* =========================
+   BUTTONS CHUNG
+   ========================= */
 .btn {
   display: inline-block;
   padding: 8px 12px;
@@ -330,11 +324,13 @@ body {
   background: rgba(15, 23, 42, 0.8);
 }
 
-/* ============ FOOTER ============ */
+/* =========================
+   FOOTER
+   ========================= */
 .site-footer {
   margin-top: auto;
   background:
-radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
+    radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
     radial-gradient(circle at 0 100%, #0ea5e9 0, transparent 0),
     linear-gradient(135deg, var(--homes-bg1), var(--homes-bg2));
   color: #e5e7eb;
@@ -472,30 +468,16 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   color: #94a3b8;
 }
 
-/* responsive */
-@media (max-width: 960px) {
-  .footer-main {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
-  .footer-main {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-}
-
-
-/* Titles */
+/* =========================
+   GRID / CARD CHUNG
+   ========================= */
 .page-title {
   font-size: 24px;
   font-weight: 600;
   margin: 0 0 16px;
-  color: #f9fafb; /* tiêu đề nổi trên nền tối */
+  color: #f9fafb;
 }
 
-/* Filter bar */
 .filterbar {
   display: flex;
   flex-wrap: wrap;
@@ -508,7 +490,6 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   color: #111;
 }
 
-/* Grid & Card */
 .grid {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -534,7 +515,7 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  color: #111; /* chữ trong card tối cho dễ đọc */
+  color: #111;
 }
 
 .card__media img {
@@ -569,7 +550,9 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   margin: 0;
 }
 
-/* Panels (reviews) */
+/* =========================
+   PANELS (reviews)
+   ========================= */
 .stack {
   display: flex;
   flex-direction: column;
@@ -604,7 +587,9 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   color: #f59e0b;
 }
 
-/* Forms */
+/* =========================
+   FORMS
+   ========================= */
 .form {
   max-width: 480px;
   background: #fff;
@@ -617,14 +602,14 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   color: #111;
 }
 
+.form--grid {
+  max-width: 720px;
+}
+
 .form__row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-}
-
-.form--grid {
-  max-width: 720px;
 }
 
 .form__error {
@@ -645,57 +630,39 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   font-size: 14px;
 }
 
-/* Responsive small */
-@media (max-width: 640px) {
-  .site-header__inner {
-    height: auto;
-    padding: 8px 0;
-  }
-
-  .site-header__actions {
-    width: 100%;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .form__row {
-    grid-template-columns: 1fr;
-  }
-}
-
-
-/* ==== CARD CHÍNH ==== */
+/* =========================
+   ADMIN FORM / CARD
+   ========================= */
 .admin-section--card {
   max-width: 1100px;
   margin: 0 auto 40px;
   padding: 24px 28px;
   border-radius: 18px;
-  background: radial-gradient(circle at top left,#111827,#020617 65%);
-  box-shadow: 0 18px 45px rgba(0,0,0,0.45);
+  background: radial-gradient(circle at top left, #111827, #020617 65%);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
 }
 
-/* ==== HÀNG & CỘT FORM ==== */
 .admin-form {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-/* mỗi hàng là 3 cột max, tự co giãn */
+/* 3 cột max, tự co giãn */
 .admin-form__row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
-/* hàng chỉ có 2 cột (tiêu đề + danh mục, giá + diện tích + trạng thái) */
+/* các hàng đầu có 3 cột khác tỉ lệ */
 .admin-form__row:nth-of-type(1),
 .admin-form__row:nth-of-type(2),
 .admin-form__row:nth-of-type(3) {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.2fr);
 }
 
-/* hàng chỉ có 1 cột (mô tả, ảnh, tiện ích...) */
+/* hàng 1 cột (textarea, upload, chips) */
 .admin-form__row:has(.admin-input--textarea),
 .admin-form__row:has(.admin-upload),
 .admin-form__row:has(.admin-chip-list) {
@@ -710,20 +677,7 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   max-width: 280px;
 }
 
-/* responsive mobile */
-@media (max-width: 900px) {
-  .admin-section--card {
-    padding: 18px 16px;
-  }
-  .admin-form__row {
-    grid-template-columns: 1fr;
-  }
-  .admin-form__col--sm {
-    max-width: none;
-  }
-}
-
-/* ==== LABEL + INPUT ==== */
+/* LABEL + INPUT */
 .admin-label {
   display: flex;
   flex-direction: column;
@@ -736,9 +690,9 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   width: 100%;
   height: 44px;
   padding: 0 16px;
-  border-radius: 20px;          /* input & select bo tròn đồng đều */
+  border-radius: 20px;
   border: 1px solid #1f2937;
-  background: rgba(15,23,42,0.9);
+  background: rgba(15, 23, 42, 0.9);
   color: #f9fafb;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
@@ -750,11 +704,11 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
 
 .admin-input:focus {
   border-color: #22d3ee;
-  box-shadow: 0 0 0 1px rgba(34,211,238,0.5);
-  background: rgba(15,23,42,1);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.5);
+  background: rgba(15, 23, 42, 1);
 }
 
-/* textarea cao đều & bo tròn nhẹ hơn */
+/* textarea */
 .admin-input--textarea {
   height: auto;
   min-height: 140px;
@@ -768,7 +722,7 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   background: transparent;
 }
 
-/* ==== THÔNG BÁO LỖI / SUCCESS ==== */
+/* THÔNG BÁO */
 .admin-error,
 .admin-success {
   margin-bottom: 16px;
@@ -778,18 +732,18 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
 }
 
 .admin-error {
-  background: rgba(220,38,38,0.22);
-  border: 1px solid rgba(248,113,113,0.8);
+  background: rgba(220, 38, 38, 0.22);
+  border: 1px solid rgba(248, 113, 113, 0.8);
   color: #fecaca;
 }
 
 .admin-success {
-  background: rgba(34,197,94,0.16);
-  border: 1px solid rgba(74,222,128,0.8);
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(74, 222, 128, 0.8);
   color: #bbf7d0;
 }
 
-/* ==== CHIP TIỆN ÍCH / MÔI TRƯỜNG ==== */
+/* CHIP tiện ích / môi trường */
 .admin-subtitle {
   font-size: 15px;
   font-weight: 600;
@@ -808,7 +762,7 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(15,23,42,0.9);
+  background: rgba(15, 23, 42, 0.9);
   border: 1px solid #1f2937;
   font-size: 13px;
   color: #e5e7eb;
@@ -818,11 +772,11 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   accent-color: #22d3ee;
 }
 
-/* ==== ẢNH PREVIEW ==== */
+/* PREVIEW ẢNH */
 .admin-upload-preview {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(auto-fill,minmax(120px,1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 10px;
 }
 
@@ -838,37 +792,36 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   object-fit: cover;
 }
 
-/* ==== NÚT HÀNH ĐỘNG ==== */
+/* ACTIONS */
 .admin-form__actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
 
-/* Lớp phủ full màn hình */
+/* =========================
+   AUTH / FORGOT PASSWORD OVERLAY
+   ========================= */
 .forgot-overlay {
   position: fixed;
-  inset: 0; /* top:0, right:0, bottom:0, left:0 */
-  background: rgba(15, 23, 42, 0.85); /* nền tối */
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999; /* nằm trên header/footer */
+  z-index: 9999;
 }
 
-/* Lớp inner để có thể thêm hiệu ứng sau này nếu muốn */
 .forgot-overlay__inner {
   max-width: 480px;
   width: 100%;
   padding: 0 16px;
 }
 
-/* Thẻ card quên mật khẩu (dùng lại style auth-card) */
 .forgot-card {
   position: relative;
 }
 
-/* Nút X góc trên bên phải */
 .forgot-close {
   position: absolute;
   top: 8px;
@@ -886,9 +839,7 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
   color: #e5e7eb;
 }
 
-/* Nếu bạn đang dùng .auth-card như mình gợi ý trước đó, giữ nguyên; 
-   nếu chưa có, thêm luôn: */
-
+/* Card đăng nhập / đăng ký */
 .auth-card {
   width: 100%;
   max-width: 420px;
@@ -985,39 +936,1001 @@ radial-gradient(circle at 100% 0, #1f2937 0, transparent 100%),
 .auth-footer a:hover {
   text-decoration: underline;
 }
-  .forgot-overlay {
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+/* Footer */
+@media (max-width: 960px) {
+  .footer-main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-section--card {
+    padding: 18px 16px;
+  }
+
+  .admin-form__row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form__col--sm {
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .footer-main {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .site-header__inner {
+    height: auto;
+    padding: 8px 0;
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .site-header__actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .form__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile nav + container */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .container--main {
+    padding-top: 16px;
+  }
+
+  .brand img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .nav {
+    width: 100%;
+    order: 3;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .nav__link {
+    font-size: 14px;
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+
+  .nav__indicator {
+    height: 32px;
+  }
+}/* =========================
+   MOBILE HEADER + DRAWER
+   ========================= */
+
+/* Nút 3 gạch (hamburger) */
+.header-burger {
+  display: none; /* desktop ẩn */
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  background: rgba(15, 23, 42, 0.95);
+  cursor: pointer;
+  padding: 6px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.header-burger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* hiệu ứng thành dấu X khi mở menu */
+.header-burger.is-active span:nth-child(1) {
+  transform: translateY(4px) rotate(45deg);
+}
+.header-burger.is-active span:nth-child(2) {
+  opacity: 0;
+}
+.header-burger.is-active span:nth-child(3) {
+  transform: translateY(-4px) rotate(-45deg);
+}
+
+/* BACKDROP tối sau khi mở menu */
+.header-drawer__backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 49;
+}
+
+.header-drawer__backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* PANEL MENU TRƯỢT TỪ PHẢI RA */
+.header-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 260px;
+  background: radial-gradient(circle at top, #020617, #020617 60%, #0b1120);
+  border-left: 1px solid rgba(148, 163, 184, 0.5);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  z-index: 60;
+  color: #e5e7eb;
+  display: none; /* desktop ẩn, mobile mới bật */
+}
+
+.header-drawer.is-open {
+  transform: translateX(0);
+}
+
+.header-drawer__inner {
+  padding: 70px 16px 16px; /* chừa chỗ cho header */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* block user (avatar + tên) trong drawer */
+.header-drawer__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-drawer__avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  background: #0f172a;
 }
 
-.forgot-overlay__inner {
-  max-width: 480px;
+.header-drawer__avatar img {
   width: 100%;
-  padding: 0 16px;
+  height: 100%;
+  object-fit: cover;
 }
 
-.forgot-card {
+.header-drawer__avatar span {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.header-drawer__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.header-drawer__role {
+  margin: 0;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* block khi chưa login */
+.header-drawer__auth {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* list menu trong drawer */
+.header-drawer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.header-drawer__link {
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #e5e7eb;
+}
+
+.header-drawer__link:hover,
+.header-drawer__link.active {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+/* nút chức năng: Cài đặt, Admin, Đăng xuất… */
+.header-drawer__btn {
+  margin-top: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.header-drawer__btn--danger {
+  border-color: rgba(248, 113, 113, 0.9);
+  color: #fecaca;
+}
+
+/* ========== RESPONSIVE HEADER (MOBILE) ========== */
+@media (max-width: 768px) {
+  /* header: một hàng, logo bên trái, icon 3 gạch bên phải */
+  .site-header__inner {
+    height: 56px;
+    padding: 6px 16px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .brand img {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Ẩn nav desktop, chỉ dùng drawer */
+  .nav {
+    display: none;
+  }
+
+  /* group actions (avatar + buttons + burger) nằm bên phải */
+  .site-header__actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    flex-wrap: nowrap;
+  }
+
+  /* Ẩn tất cả nút + avatar ở header, chỉ còn nút 3 gạch;
+     avatar + menu sẽ nằm trong drawer */
+  .site-header__actions .btn,
+  .header-auth-user {
+    display: none;
+  }
+
+  /* hiện nút 3 gạch */
+  .header-burger {
+    display: inline-flex;
+  }
+
+  /* cho phép dùng drawer ở mobile */
+  .header-drawer {
+    display: block;
+  }
+}
+
+/* mobile nhỏ chỉnh nhẹ logo */
+@media (max-width: 480px) {
+  .brand img {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* =========================
+   RESPONSIVE SEARCH & GRID
+   ========================= */
+
+/* Desktop: hiển thị hình ngang */
+.rebar-search {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.re-input {
+  padding: 10px 12px;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  background: rgba(30, 41, 59, 0.7);
+  color: #e5e7eb;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.re-input:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  background: rgba(30, 41, 59, 0.9);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.re-input--grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.re-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.re-btn--primary {
+  background: #0ea5e9;
+  color: #fff;
+}
+
+.re-btn--primary:hover {
+  background: #0284c7;
+}
+
+.re-btn--line {
+  background: transparent;
+  border: 1px solid #0ea5e9;
+  color: #0ea5e9;
+}
+
+.re-btn--line:hover {
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.re-btn--ghost {
+  background: transparent;
+  border: 1px solid #64748b;
+  color: #cbd5e1;
+}
+
+.re-btn--ghost:hover {
+  background: rgba(100, 116, 139, 0.1);
+}
+
+/* Tablet: wrap một số input */
+@media (max-width: 1024px) {
+  .rebar-search {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .re-input--mobile {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 140px;
+  }
+
+  .re-input--grow {
+    flex: 1 1 100%;
+  }
+
+  .re-btn--mobile {
+    flex: 1 1 calc(50% - 5px);
+  }
+}
+
+/* Mobile: stack vertical */
+@media (max-width: 768px) {
+  .rebar-search {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .re-input {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px; /* tránh zoom auto trên iOS */
+  }
+
+  .re-input--grow,
+  .re-input--mobile {
+    flex: none;
+    width: 100%;
+  }
+
+  .re-btn--primary,
+  .re-btn--mobile {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  /* Layout 2 cột thành 1 cột */
+  .re-layout {
+    display: block;
+  }
+
+  .re-main {
+    margin-bottom: 24px;
+  }
+
+  .re-aside {
+    width: 100%;
+  }
+
+  /* Grid: từ multi-col xuống 1 hoặc 2 */
+  .re-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .re-card {
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(30, 41, 59, 0.6);
+    transition: all 0.2s ease;
+  }
+
+  .re-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .re-card__media {
+    width: 100%;
+    height: 120px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .re-card__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .re-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #ef4444;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .re-card__body {
+    padding: 12px;
+  }
+
+  .re-card__title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #f1f5f9;
+  }
+
+  .re-card__meta {
+    font-size: 12px;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .re-card__meta .price {
+    font-weight: 600;
+    color: #0ea5e9;
+  }
+
+  .re-card__meta .dot {
+    color: #64748b;
+  }
+
+  .re-card__amen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .re-card__tag {
+    background: rgba(14, 165, 233, 0.15);
+    color: #0ea5e9;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .re-card__foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(100, 116, 139, 0.2);
+    font-size: 12px;
+  }
+
+  .re-card__foot .time {
+    color: #94a3b8;
+  }
+
+  .re-card__foot .re-btn {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Chips (bộ lọc đã áp dụng) */
+  .re-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .re-chip {
+    background: rgba(14, 165, 233, 0.2);
+    border: 1px solid #0ea5e9;
+    color: #0ea5e9;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .re-chip:hover {
+    background: rgba(14, 165, 233, 0.3);
+  }
+
+  .re-chip .x {
+    margin-left: 4px;
+    font-weight: bold;
+  }
+
+  .re-linkclear {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .re-linkclear:hover {
+    color: #e5e7eb;
+  }
+
+  /* Pagination */
+  .re-paging {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  .re-paging button {
+    padding: 6px 10px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+  }
+
+  .re-paging button:hover:not(:disabled) {
+    background: #0ea5e9;
+    border-color: #0ea5e9;
+    color: #fff;
+  }
+
+  .re-paging button.is-on {
+    background: #0ea5e9;
+    border-color: #0ea5e9;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .re-paging button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .re-paging__ellipsis {
+    padding: 6px 4px;
+    color: #64748b;
+  }
+
+  /* Filter card (aside) */
+  .re-filtercard {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .re-filtercard h3 {
+    margin: 0 0 16px;
+    font-size: 16px;
+    color: #f1f5f9;
+  }
+
+  .re-field {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+  }
+
+  .re-field:last-child {
+    border-bottom: none;
+  }
+
+  .re-field label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+  }
+
+  .re-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .re-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #cbd5e1;
+  }
+
+  .re-check input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #0ea5e9;
+  }
+
+  .re-check:hover {
+    color: #e5e7eb;
+  }
+
+  .re-filtercard__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .re-filtercard__actions .re-btn {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  /* Results header */
+  .re-results__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .re-results__head h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #f1f5f9;
+  }
+
+  .re-results__head p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: #cbd5e1;
+  }
+
+  /* Error message */
+  .re-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    padding: 12px 14px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+
+  /* Hero section */
+  .re-hero {
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-attachment: fixed;
+  }
+
+  .re-hero__inner {
+    text-align: center;
+    color: #fff;
+  }
+
+  .re-hero h1 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    font-weight: 700;
+  }
+
+  .re-hero p {
+    font-size: 14px;
+    margin: 0;
+    opacity: 0.9;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .re-hero h1 {
+    font-size: 20px;
+  }
+
+  .re-hero p {
+    font-size: 12px;
+  }
+
+  .re-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+  }
+
+  .re-card__media {
+    height: 100px;
+  }
+
+  .re-card__body {
+    padding: 10px;
+  }
+
+  .re-card__title {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .re-card__meta {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .re-card__amen {
+    gap: 3px;
+    margin-bottom: 6px;
+  }
+
+  .re-card__tag {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+
+  .re-card__foot {
+    gap: 4px;
+    padding-top: 6px;
+    font-size: 11px;
+  }
+
+  .re-filtercard {
+    padding: 12px;
+  }
+
+  .re-filtercard h3 {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .re-field {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+  }
+
+  .re-input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .re-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .re-chip {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .re-check {
+    font-size: 12px;
+  }
+
+  .re-results__head h2 {
+    font-size: 18px;
+  }
+
+  .re-results__head p {
+    font-size: 12px;
+  }
+}
+
+/* =========================
+   ADMIN PAGES - MOBILE / RESPONSIVE
+   Keep desktop admin UI intact; apply stacking and touch-friendly sizes on narrow viewports.
+   ========================= */
+
+/* Tablet: make admin forms stack into 1 column and reduce paddings */
+@media (max-width: 1024px) {
+  .admin-section--card {
+    padding: 18px 16px;
+  }
+
+  .admin-form__row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .admin-form__col--sm {
+    max-width: none;
+  }
+
+  .admin-upload-preview {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+}
+
+/* Mobile: compact admin layout, full-width inputs, stacked actions */
+@media (max-width: 768px) {
+  .admin-section--card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .admin-form {
+    gap: 12px;
+  }
+
+  .admin-form__row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form__col {
+    width: 100%;
+  }
+
+  .admin-label {
+    font-size: 14px;
+  }
+
+  .admin-input {
+    height: 44px;
+    padding: 10px 12px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+
+  .admin-input--textarea {
+    min-height: 120px;
+    padding: 10px 12px;
+    border-radius: 10px;
+  }
+
+  .admin-chip-list {
+    gap: 6px;
+  }
+
+  .admin-upload-preview__item {
+    height: 90px;
+  }
+
+  .admin-form__actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .admin-form__actions .btn,
+  .admin-form__actions .re-btn,
+  .admin-form__actions .auth-btn {
+    width: 100%;
+  }
+
+  /* compact notifications */
+  .admin-error,
+  .admin-success {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+}
+
+/* Very small screens: tighten spacing and increase touch targets */
+@media (max-width: 480px) {
+  .admin-section--card {
+    padding: 12px;
+  }
+
+  .admin-upload-preview {
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  }
+
+  .admin-upload-preview__item {
+    height: 80px;
+  }
+
+  .admin-input,
+  .admin-input--textarea {
+    font-size: 15px;
+  }
+}
+
+
+ .header-heart {
   position: relative;
-}
-
-.forgot-close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
+  margin-right: 8px;
   border: none;
   background: transparent;
-  color: #9ca3af;
-  font-size: 22px;
   cursor: pointer;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-heart__icon {
+  font-size: 20px;
   line-height: 1;
 }
 
-.forgot-close:hover {
-  color: #e5e7eb;
+.header-heart__badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 16px;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 16px;
+  border-radius: 999px;
+  background: #ff4d4f;
+  color: #fff;
+  text-align: center;
 }

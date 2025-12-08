@@ -14,7 +14,11 @@ async function safeJson(res) {
   try {
     return JSON.parse(text)
   } catch {
-    console.warn('Header: phản hồi không phải JSON', res.url, text.slice(0, 120))
+    console.warn(
+      'Header: phản hồi không phải JSON',
+      res.url,
+      text.slice(0, 120),
+    )
     return null
   }
 }
@@ -26,7 +30,11 @@ export default function Header() {
 
   const [user, setUser] = useState(null)
   const [indicatorStyle, setIndicatorStyle] = useState({})
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false) // dropdown avatar (desktop)
+  const [drawerOpen, setDrawerOpen] = useState(false) // menu mobile
+
+  // ====== WISHLIST ======
+  const [wishlistCount, setWishlistCount] = useState(0)
 
   // danh sách 4 category hiển thị trên menu
   const [navCategories, setNavCategories] = useState([])
@@ -39,7 +47,10 @@ export default function Header() {
   const navClass = ({ isActive }) =>
     'nav__link' + (isActive ? ' is-active' : '')
 
-  // ===== Hiệu ứng viên thuốc nav =====
+  const drawerNavClass = ({ isActive }) =>
+    'header-drawer__link' + (isActive ? ' active' : '')
+
+  // ===== Hiệu ứng viên thuốc nav (desktop) =====
   useEffect(() => {
     const navEl = navRef.current
     if (!navEl) return
@@ -63,7 +74,12 @@ export default function Header() {
     })
   }, [location.pathname])
 
-  // ===== Lấy categories cho menu (4 mục Phòng trọ / Nhà nguyên căn / Căn hộ / Ký túc xá) =====
+  // đóng drawer mỗi khi đổi route
+  useEffect(() => {
+    setDrawerOpen(false)
+  }, [location.pathname])
+
+  // ===== Lấy categories cho menu =====
   useEffect(() => {
     ;(async () => {
       try {
@@ -76,9 +92,7 @@ export default function Header() {
         let list = data?.data || data || []
         if (!Array.isArray(list)) list = []
 
-        // đảm bảo sort theo id tăng dần rồi lấy 4 cái đầu
         list = [...list].sort((a, b) => Number(a.id) - Number(b.id))
-
         setNavCategories(list.slice(0, 4))
       } catch (e) {
         console.error('Header: lỗi load categories cho menu:', e)
@@ -89,7 +103,6 @@ export default function Header() {
   // ===== Hàm lấy user từ API khi chỉ có token =====
   const fetchUserFromApi = async token => {
     try {
-      // nếu backend là /api/user/profile thì đổi URL ở đây
       const res = await fetch('/api/user', {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -110,7 +123,7 @@ export default function Header() {
     }
   }
 
-  // ===== Đọc user từ localStorage + fallback gọi /api/user nếu chỉ có token =====
+  // ===== Đọc user từ localStorage + fallback gọi /api/user =====
   useEffect(() => {
     const initAuth = () => {
       const raw = localStorage.getItem('auth_user')
@@ -119,7 +132,7 @@ export default function Header() {
       if (raw) {
         try {
           let parsed = JSON.parse(raw)
-          if (parsed && parsed.user) parsed = parsed.user // hỗ trợ kiểu {user:{...}}
+          if (parsed && parsed.user) parsed = parsed.user
           setUser(parsed || null)
           return
         } catch (e) {
@@ -127,7 +140,6 @@ export default function Header() {
         }
       }
 
-      // Không có auth_user nhưng có token -> gọi API lấy user
       if (token) {
         fetchUserFromApi(token)
       } else {
@@ -140,7 +152,30 @@ export default function Header() {
     return () => window.removeEventListener('auth:changed', initAuth)
   }, [])
 
-  // ===== Đóng dropdown khi click ngoài =====
+  // ====== INIT WISHLIST (localStorage + event) ======
+  useEffect(() => {
+    const initWishlist = () => {
+      try {
+        const raw = localStorage.getItem('wishlist_posts')
+        if (!raw) {
+          setWishlistCount(0)
+          return
+        }
+        const parsed = JSON.parse(raw)
+        setWishlistCount(Array.isArray(parsed) ? parsed.length : 0)
+      } catch (e) {
+        console.error('parse wishlist_posts error', e)
+        setWishlistCount(0)
+      }
+    }
+
+    initWishlist()
+    window.addEventListener('wishlist:changed', initWishlist)
+    return () =>
+      window.removeEventListener('wishlist:changed', initWishlist)
+  }, [])
+
+  // ===== Đóng dropdown khi click ngoài (desktop) =====
   useEffect(() => {
     if (!menuOpen) return
     const handleClick = e => {
@@ -171,14 +206,42 @@ export default function Header() {
     } finally {
       localStorage.removeItem('access_token')
       localStorage.removeItem('auth_user')
+      // tuỳ anh: có thể clear luôn wishlist khi logout
+      // localStorage.removeItem('wishlist_posts')
+      setWishlistCount(0)
       setUser(null)
       window.dispatchEvent(new Event('auth:changed'))
       setMenuOpen(false)
+      setDrawerOpen(false)
 
       if (location.pathname.startsWith('/admin')) {
         navigate('/')
       }
     }
+  }
+
+  const openLogin = () => {
+    setDrawerOpen(false)
+    setShowRegister(false)
+    setShowLogin(true)
+  }
+
+  const openRegister = () => {
+    setDrawerOpen(false)
+    setShowLogin(false)
+    setShowRegister(true)
+  }
+
+  // ===== Mở trang yêu thích =====
+  const handleWishlistClick = () => {
+    if (!user) {
+      // chưa login -> bắt login trước
+      openLogin()
+      return
+    }
+    navigate('/wishlist')
+    setMenuOpen(false)
+    setDrawerOpen(false)
   }
 
   // ===== Avatar =====
@@ -191,47 +254,94 @@ export default function Header() {
 
   const avatarChar = user?.name?.charAt(0)?.toUpperCase() || 'U'
 
+  const categoryLinks = (
+    <>
+      {navCategories.length > 0 ? (
+        navCategories.map(cat => (
+          <NavLink key={cat.id} to={`/${cat.slug}`} className={navClass}>
+            {cat.name}
+          </NavLink>
+        ))
+      ) : (
+        <>
+          <NavLink to="/phong-tro" className={navClass}>
+            Phòng trọ
+          </NavLink>
+          <NavLink to="/nha-nguyen-can" className={navClass}>
+            Nhà nguyên căn
+          </NavLink>
+          <NavLink to="/can-ho" className={navClass}>
+            Căn hộ
+          </NavLink>
+          <NavLink to="/ky-tuc-xa" className={navClass}>
+            Ký túc xá
+          </NavLink>
+        </>
+      )}
+    </>
+  )
+
+  const drawerCategoryLinks = (
+    <>
+      {navCategories.length > 0 ? (
+        navCategories.map(cat => (
+          <NavLink
+            key={cat.id}
+            to={`/${cat.slug}`}
+            className={drawerNavClass}
+            onClick={() => setDrawerOpen(false)}
+          >
+            {cat.name}
+          </NavLink>
+        ))
+      ) : (
+        <>
+          <NavLink
+            to="/phong-tro"
+            className={drawerNavClass}
+            onClick={() => setDrawerOpen(false)}
+          >
+            Phòng trọ
+          </NavLink>
+          <NavLink
+            to="/nha-nguyen-can"
+            className={drawerNavClass}
+            onClick={() => setDrawerOpen(false)}
+          >
+            Nhà nguyên căn
+          </NavLink>
+          <NavLink
+            to="/can-ho"
+            className={drawerNavClass}
+            onClick={() => setDrawerOpen(false)}
+          >
+            Căn hộ
+          </NavLink>
+          <NavLink
+            to="/ky-tuc-xa"
+            className={drawerNavClass}
+            onClick={() => setDrawerOpen(false)}
+          >
+            Ký túc xá
+          </NavLink>
+        </>
+      )}
+    </>
+  )
+
   return (
     <>
       <header className="site-header">
         <div className="container site-header__inner">
+          {/* logo luôn ở bên trái */}
           <Link to="/" className="brand">
             <img src={logo} alt="Logo" />
           </Link>
 
+          {/* NAV DESKTOP (hidden trên mobile bằng CSS) */}
           <nav className="nav" ref={navRef}>
             <span className="nav__indicator" style={indicatorStyle} />
-
-            {/* 4 mục chính lấy từ categories */}
-            {navCategories.length > 0 ? (
-              navCategories.map(cat => (
-                <NavLink
-                  key={cat.id}
-                  to={`/${cat.slug}`} // route dùng slug (phong-tro, nha-nguyen-can, ...)
-                  className={navClass}
-                >
-                  {cat.name} {/* hiển thị tên: căn hộ, ký túc xá, ... */}
-                </NavLink>
-              ))
-            ) : (
-              <>
-                {/* fallback khi API lỗi / chưa load */}
-                <NavLink to="/phong-tro" className={navClass}>
-                  Phòng trọ
-                </NavLink>
-                <NavLink to="/nha-nguyen-can" className={navClass}>
-                  Nhà nguyên căn
-                </NavLink>
-                <NavLink to="/can-ho" className={navClass}>
-                  Căn hộ
-                </NavLink>
-                <NavLink to="/ky-tuc-xa" className={navClass}>
-                  Ký túc xá
-                </NavLink>
-              </>
-            )}
-
-            {/* các mục tĩnh */}
+            {categoryLinks}
             <NavLink to="/reviews" className={navClass}>
               Review
             </NavLink>
@@ -240,8 +350,24 @@ export default function Header() {
             </NavLink>
           </nav>
 
+          {/* ACTIONS + BURGER */}
           <div className="site-header__actions">
-            {/* CHƯA ĐĂNG NHẬP -> hiện 2 nút */}
+            {/* NÚT YÊU THÍCH (TRÁI TIM) – BÊN TRÁI AVATAR */}
+            <button
+              type="button"
+              className="header-heart"
+              onClick={handleWishlistClick}
+              aria-label="Danh sách yêu thích"
+            >
+              <span className="header-heart__icon">♥</span>
+              {wishlistCount > 0 && (
+                <span className="header-heart__badge">
+                  {wishlistCount}
+                </span>
+              )}
+            </button>
+
+            {/* CHƯA ĐĂNG NHẬP -> 2 nút + (mobile sẽ ẩn bằng CSS) */}
             {!user && (
               <>
                 <button
@@ -262,7 +388,7 @@ export default function Header() {
               </>
             )}
 
-            {/* ĐÃ ĐĂNG NHẬP -> chỉ hiện avatar + menu, 2 nút biến mất */}
+            {/* ĐÃ ĐĂNG NHẬP -> avatar + dropdown (desktop) */}
             {user && (
               <div className="header-auth-user" ref={userMenuRef}>
                 <button
@@ -336,9 +462,153 @@ export default function Header() {
                 )}
               </div>
             )}
+
+            {/* NÚT 3 GẠCH (HIỆN TRÊN MOBILE, CSS handle) */}
+            <button
+              type="button"
+              className={'header-burger' + (drawerOpen ? ' is-active' : '')}
+              onClick={() => setDrawerOpen(prev => !prev)}
+              aria-label="Mở menu"
+            >
+              <span />
+              <span />
+              <span />
+            </button>
           </div>
         </div>
       </header>
+
+      {/* BACKDROP & DRAWER MOBILE MENU */}
+      <div
+        className={
+          'header-drawer__backdrop' + (drawerOpen ? ' is-open' : '')
+        }
+        onClick={() => setDrawerOpen(false)}
+      />
+      <aside className={'header-drawer' + (drawerOpen ? ' is-open' : '')}>
+        <div className="header-drawer__inner">
+          {user ? (
+            <>
+              {/* user block */}
+              <div className="header-drawer__user">
+                <div className="header-drawer__avatar">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={user.name} />
+                  ) : (
+                    <span>{avatarChar}</span>
+                  )}
+                </div>
+                <div>
+                  <p className="header-drawer__name">{user.name}</p>
+                  <p className="header-drawer__role">
+                    {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
+                  </p>
+                </div>
+              </div>
+
+              {/* nav links */}
+              <nav className="header-drawer__nav">
+                {drawerCategoryLinks}
+                <NavLink
+                  to="/reviews"
+                  className={drawerNavClass}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  Review
+                </NavLink>
+                <NavLink
+                  to="/blog"
+                  className={drawerNavClass}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  Blog
+                </NavLink>
+              </nav>
+
+              {/* Nút wishlist trên mobile */}
+              <button
+                type="button"
+                className="header-drawer__btn"
+                onClick={handleWishlistClick}
+              >
+                ❤️ Danh sách yêu thích
+                {wishlistCount > 0 && ` (${wishlistCount})`}
+              </button>
+
+              {/* actions giống avatar menu */}
+              <button
+                type="button"
+                className="header-drawer__btn"
+                onClick={() => {
+                  setShowSettings(true)
+                  setDrawerOpen(false)
+                }}
+              >
+                Cài đặt tài khoản
+              </button>
+
+              {user.role === 'admin' && (
+                <button
+                  type="button"
+                  className="header-drawer__btn"
+                  onClick={() => {
+                    navigate('/admin')
+                    setDrawerOpen(false)
+                  }}
+                >
+                  Khu vực quản trị
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="header-drawer__btn header-drawer__btn--danger"
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </button>
+            </>
+          ) : (
+            <>
+              {/* chưa login: nav + nút login/register */}
+              <nav className="header-drawer__nav">
+                {drawerCategoryLinks}
+                <NavLink
+                  to="/reviews"
+                  className={drawerNavClass}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  Review
+                </NavLink>
+                <NavLink
+                  to="/blog"
+                  className={drawerNavClass}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  Blog
+                </NavLink>
+              </nav>
+
+              <div className="header-drawer__auth">
+                <button
+                  type="button"
+                  className="header-drawer__btn"
+                  onClick={openLogin}
+                >
+                  Đăng nhập
+                </button>
+                <button
+                  type="button"
+                  className="header-drawer__btn"
+                  onClick={openRegister}
+                >
+                  Đăng ký
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </aside>
 
       {/* Popup login / register */}
       {showLogin && (
