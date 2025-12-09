@@ -334,6 +334,7 @@
   font-size: 14px;
   font-weight: 600;
   margin-top: 6px;
+  margin-bottom: 10px;
 }
 
 .pd-btn--primary {
@@ -1568,3 +1569,9 @@
   }
 }
 
+.favorite-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center; 
+    gap: 6px;
+}

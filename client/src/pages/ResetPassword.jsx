@@ -165,7 +165,7 @@ export default function ResetPassword() {
         </form>
 
         <div className="auth-footer">
-          <Link to="/login">Quay lại đăng nhập</Link>
+          <Link to="/">Quay lại đăng nhập</Link>
         </div>
       </div>
     </div>

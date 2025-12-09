@@ -30,7 +30,7 @@ class ForgotPasswordController extends Controller
 
 
         // Mã OTP 6 số
-        $token = strtoupper(Str::random(6));
+        $token = mt_rand(100000, 999999);
 
 
         // Lưu hoặc cập nhật token + thời gian tạo

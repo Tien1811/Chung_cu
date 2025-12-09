@@ -5,6 +5,7 @@ import logo from '@/assets/images/logo.png'
 import Login from '../pages/Login'
 import Register from '../pages/Register'
 import UserSettingsModal from '../components/UserSettingsModal'
+import { Heart } from 'lucide-react';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
@@ -410,7 +411,7 @@ export default function Header() {
               onClick={handleWishlistClick}
               aria-label="Danh sách yêu thích"
             >
-              <span className="header-heart__icon">♥</span>
+              <span className="header-heart__icon"><Heart /></span>
               {wishlistCount > 0 && (
                 <span className="header-heart__badge">
                   {wishlistCount}

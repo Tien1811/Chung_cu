@@ -223,7 +223,7 @@ class ChatbotController extends Controller
         - Cách đăng Blog: Các bài blog chỉ có admin đăng tải.
         - Cách thuê trọ: Liên hệ người cho thuê qua số điện thoại trực tiếp hoặc qua zalo có trong mỗi bài đăng.
         - Chatbot hỗ trợ: Tư vấn tìm trọ, giải đáp thắc mắc về website và dịch vụ cho người dùng.
-        - Cách Lưu bài viết: Người dùng có thể lưu bài viết yêu thích để xem sau bằng cách nhấn vào biểu tượng trái tim ở bài viết.
+        - Cách Lưu bài viết: Người dùng có thể lưu bài viết yêu thích để xem sau bằng cách nhấn vào trong bài viết nhấn Lưu bài viết yêu thích.
         - Cách đăng ký tài khoản: Nhấn vào nút 'Đăng ký' ở góc phải trên cùng, điền thông tin để đăng ký.
         - Quên mật khẩu: Nhấn vào 'Quên mật khẩu' trên trang đăng nhập, làm theo hướng dẫn để đặt lại mật khẩu.
         - Hợp đồng: Chỉ hỗ trợ tìm kiếm, không tham gia vào hợp đồng thuê giữa các bên.

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import '../assets/style/pages/post-detail.css'
+import { HeartPlus , HeartOff  } from 'lucide-react';
 
 // DÙNG CHUNG CHO MỌI ẢNH: string, CloudinaryFile, PostImage + file
 function normalizeImageUrl(source) {
@@ -707,7 +708,9 @@ export default function PostDetail() {
               }
               onClick={toggleFavorite}
             >
-              {isFavorite ? 'Bỏ khỏi yêu thích ♥' : 'Lưu tin yêu thích ♡'}
+            <div className='favorite-btn'>
+              {isFavorite ? <>Bỏ khỏi yêu thích <HeartOff size={18} /></> : <>Lưu tin yêu thích <HeartPlus size={18}/></>}
+            </div>
             </button>
 
             <div className="pd-host">
