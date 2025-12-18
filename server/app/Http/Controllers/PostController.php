@@ -352,119 +352,119 @@ class PostController extends Controller
         }
     }
 
-// =========================
-// PUT api/posts/{id}
-// =========================
-public function update(Request $request, $id)
-{
-    try {
-        $post = Post::with('images.file')->find($id);
+    // =========================
+    // PUT api/posts/{id}
+    // =========================
+    public function update(Request $request, $id)
+    {
+        try {
+            $post = Post::with('images.file')->find($id);
 
-        if (!$post) {
-            return response()->json(['status' => false, 'message' => 'Không tìm thấy bài viết.'], 404);
-        }
+            if (!$post) {
+                return response()->json(['status' => false, 'message' => 'Không tìm thấy bài viết.'], 404);
+            }
 
-        $user = Auth::user();
-        if ($user->role !== 'admin' && $post->user_id !== $user->id) {
-            return response()->json(['status' => false, 'message' => 'Không có quyền sửa bài.'], 403);
-        }
+            $user = Auth::user();
+            if ($user->role !== 'admin' && $post->user_id !== $user->id) {
+                return response()->json(['status' => false, 'message' => 'Không có quyền sửa bài.'], 403);
+            }
 
-        $request->validate([
-            'category_id'         => 'required|exists:categories,id',
-            'title'               => 'required|string|max:255',
-            'price'               => 'nullable|integer|min:0',
-            'area'                => 'nullable|integer|min:1',
-            'address'             => 'nullable|string|max:255',
-            'content'             => 'nullable|string',
-            'contact_phone'       => 'nullable|string|max:20',
-            'status'              => 'required|in:draft,pending,published,rejected',
-            'max_people'          => 'nullable|integer|min:1',
-            'province_id'         => 'nullable|exists:provinces,id',
-            'district_id'         => 'nullable|exists:districts,id',
-            'ward_id'             => 'nullable|exists:wards,id',
+            $request->validate([
+                'category_id'         => 'required|exists:categories,id',
+                'title'               => 'required|string|max:255',
+                'price'               => 'nullable|integer|min:0',
+                'area'                => 'nullable|integer|min:1',
+                'address'             => 'nullable|string|max:255',
+                'content'             => 'nullable|string',
+                'contact_phone'       => 'nullable|string|max:20',
+                'status'              => 'required|in:draft,pending,published,rejected',
+                'max_people'          => 'nullable|integer|min:1',
+                'province_id'         => 'nullable|exists:provinces,id',
+                'district_id'         => 'nullable|exists:districts,id',
+                'ward_id'             => 'nullable|exists:wards,id',
 
-            // gallery
-            'remove_image_ids'    => 'array',
-            'remove_image_ids.*'  => 'integer',
-            'images'              => 'array',
-            'images.*'            => 'image|max:4096',
-        ]);
+                // gallery
+                'remove_image_ids'    => 'array',
+                'remove_image_ids.*'  => 'integer',
+                'images'              => 'array',
+                'images.*'            => 'image|max:4096',
+            ]);
 
-        // update text
-        $post->update($request->only([
-            'category_id', 'title', 'price', 'area', 'address', 'content',
-            'contact_phone', 'status', 'max_people',
-            'province_id', 'district_id', 'ward_id','status',
-        ]));
+            // update text
+            $post->update($request->only([
+                'category_id', 'title', 'price', 'area', 'address', 'content',
+                'contact_phone', 'status', 'max_people',
+                'province_id', 'district_id', 'ward_id','status',
+            ]));
 
-        // remove images
-        if ($request->filled('remove_image_ids')) {
-            $images = $post->images()
-                ->whereIn('id', $request->remove_image_ids)
-                ->get();
+            // remove images
+            if ($request->filled('remove_image_ids')) {
+                $images = $post->images()
+                    ->whereIn('id', $request->remove_image_ids)
+                    ->get();
 
-            foreach ($images as $img) {
-                if ($img->file) {
-                    $this->cloudinary->delete($img->file->public_id);
-                    $img->file->delete();
+                foreach ($images as $img) {
+                    if ($img->file) {
+                        $this->cloudinary->delete($img->file->public_id);
+                        $img->file->delete();
+                    }
+                    $img->delete();
                 }
-                $img->delete();
+            }
+
+            // add new images
+            if ($request->hasFile('images')) {
+                $currentMaxSort = $post->images()->max('sort_order') ?? 0;
+
+                foreach ($request->file('images') as $index => $file) {
+                    $upload = $this->cloudinary->upload(
+                        $file->getRealPath(),
+                        'post_images'
+                    );
+
+                    $cloudFile = CloudinaryFile::create([
+                        'model_type' => Post::class,
+                        'model_id'   => $post->id,
+                        'public_id'  => $upload['public_id'],
+                        'url'        => $upload['secure_url'],
+                        'type'       => 'image',
+                    ]);
+
+                    $post->images()->create([
+                        'file_id'    => $cloudFile->id,
+                        'sort_order' => $currentMaxSort + $index + 1,
+                    ]);
+                }
+            }
+
+            // reload
+            $post->load([
+                'category:id,name',
+                'province:id,name',
+                'district:id,name',
+                'ward:id,name',
+                'thumbnail',
+                'images.file',
+            ]);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Cập nhật bài thành công.',
+                'data'    => $this->preparePostForResponse($post),
+            ]);
+            } catch (ValidationException $e) {
+                return response()->json([
+                    'status' => false,
+                    'errors' => $e->errors(),
+                ], 422);
+            } catch (Exception $e) {
+                Log::error('Post update error: ' . $e->getMessage());
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Không thể cập nhật bài viết.',
+                ], 500);
             }
         }
-
-        // add new images
-        if ($request->hasFile('images')) {
-            $currentMaxSort = $post->images()->max('sort_order') ?? 0;
-
-            foreach ($request->file('images') as $index => $file) {
-                $upload = $this->cloudinary->upload(
-                    $file->getRealPath(),
-                    'post_images'
-                );
-
-                $cloudFile = CloudinaryFile::create([
-                    'model_type' => Post::class,
-                    'model_id'   => $post->id,
-                    'public_id'  => $upload['public_id'],
-                    'url'        => $upload['secure_url'],
-                    'type'       => 'image',
-                ]);
-
-                $post->images()->create([
-                    'file_id'    => $cloudFile->id,
-                    'sort_order' => $currentMaxSort + $index + 1,
-                ]);
-            }
-        }
-
-        // reload
-        $post->load([
-            'category:id,name',
-            'province:id,name',
-            'district:id,name',
-            'ward:id,name',
-            'thumbnail',
-            'images.file',
-        ]);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'Cập nhật bài thành công.',
-            'data'    => $this->preparePostForResponse($post),
-        ]);
-    } catch (ValidationException $e) {
-        return response()->json([
-            'status' => false,
-            'errors' => $e->errors(),
-        ], 422);
-    } catch (Exception $e) {
-        Log::error('Post update error: ' . $e->getMessage());
-        return response()->json([
-            'status'  => false,
-            'message' => 'Không thể cập nhật bài viết.',
-        ], 500);
-    }
-}
 
 
     // =========================
@@ -473,70 +473,105 @@ public function update(Request $request, $id)
     public function destroy($id)
     {
         try {
-            $post = Post::with('thumbnail')->find($id);
+            $post = Post::with(['images.file', 'thumbnail'])->find($id);
 
             if (!$post) {
-                return response()->json(['status' => false, 'message' => 'Không tìm thấy bài viết.'], 404);
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Không tìm thấy bài viết.'
+                ], 404);
             }
 
             $user = Auth::user();
+
             if ($user->role !== 'admin' && $post->user_id !== $user->id) {
-                return response()->json(['status' => false, 'message' => 'Không có quyền xóa bài.'], 403);
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Bạn không có quyền xóa bài viết.'
+                ], 403);
             }
 
+            // Xóa thumbnail
             if ($post->thumbnail) {
-                $this->cloudinary->delete($post->thumbnail->public_id);
+                try {
+                    $this->cloudinary->delete($post->thumbnail->public_id);
+                } catch (\Throwable $ex) {
+                    Log::warning("Không thể xóa thumbnail Cloudinary: " . $ex->getMessage());
+                }
+
                 $post->thumbnail->delete();
             }
 
+            // Xóa ảnh post
+            foreach ($post->images as $img) {
+                if ($img->file) {
+                    try {
+                        $this->cloudinary->delete($img->file->public_id);
+                    } catch (\Throwable $ex) {
+                        Log::warning("Không thể xóa ảnh Cloudinary: " . $ex->getMessage());
+                    }
+
+                    $img->file->delete();
+                }
+
+                $img->delete();
+            }
+
+            // Xóa bài viết
             $post->delete();
 
             return response()->json([
                 'status' => true,
-                'message' => 'Xóa bài viết thành công.',
+                'message' => 'Xóa bài viết thành công.'
             ]);
+
         } catch (Exception $e) {
-            Log::error('Lỗi xóa bài viết: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Không thể xóa bài viết.'], 500);
+
+            Log::error("Lỗi xóa bài: " . $e->getMessage());
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Không thể xóa bài viết.'
+            ], 500);
         }
     }
 
     // =========================
-// PUT api/posts/{id}/status  (ADMIN DUYỆT / ẨN)
-// =========================
-public function updateStatus(Request $request, $id)
-{
-    $user = Auth::user();
+    // PUT api/posts/{id}/status  (ADMIN DUYỆT / ẨN)
+    // =========================
+    public function updateStatus(Request $request, $id)
+    {
+        $user = Auth::user();
 
-    if (!$user || $user->role !== 'admin') {
+        if (!$user || $user->role !== 'admin') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Chỉ admin mới được duyệt bài'
+            ], 403);
+        }
+
+        $request->validate([
+            'status' => 'required|in:published,hidden,rejected'
+        ]);
+
+        $post = Post::find($id);
+
+        if (!$post) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Không tìm thấy bài viết'
+            ], 404);
+        }
+
+        $post->update([
+            'status' => $request->status
+        ]);
+
         return response()->json([
-            'status' => false,
-            'message' => 'Chỉ admin mới được duyệt bài'
-        ], 403);
+            'status' => true,
+            'message' => 'Đổi trạng thái thành công',
+            'data' => $post
+        ]);
     }
-
-    $request->validate([
-        'status' => 'required|in:published,hidden,rejected'
-    ]);
-
-    $post = Post::find($id);
-
-    if (!$post) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Không tìm thấy bài viết'
-        ], 404);
-    }
-
-    $post->update([
-        'status' => $request->status
-    ]);
-
-    return response()->json([
-        'status' => true,
-        'message' => 'Đổi trạng thái thành công',
-        'data' => $post
-    ]);
-}
 
 }
