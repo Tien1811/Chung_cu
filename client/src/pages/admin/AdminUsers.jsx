@@ -10,7 +10,7 @@ function getAvatar(u) {
     u?.avatar_url ||
     u?.avatar ||
     u?.profile?.avatar_url ||
-    "/default-avatar.png"
+    "../src/assets/images/default-avatar.png"  // Ảnh mặc định khi không có avatar
   )
 }
 
@@ -142,7 +142,7 @@ export default function AdminUsers() {
               <th>Email</th>
               <th>Vai trò</th>
               <th>Ngày tạo</th>
-              <th>Hành động</th>
+              <th style={{ textAlign: 'center' }}>Hành động</th>
             </tr>
           </thead>
 
@@ -188,7 +188,7 @@ export default function AdminUsers() {
                   <td>{createdAt}</td>
 
                   {/* Actions */}
-                  <td style={{display:'flex', width:270}}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
 
                     {/* Cấp quyền */}
                     {isUser && (
@@ -197,7 +197,7 @@ export default function AdminUsers() {
                         className="admin-btn admin-btn--primary"
                         disabled={savingId === u.id}
                         onClick={() => changeRole(u.id, "lessor")}
-                        
+                        style={{ padding: '8px 16px', minWidth: '140px' }} // Cân đối kích thước
                       >
                         {savingId === u.id ? "Đang cấp quyền..." : "Cấp quyền lessor"}
                       </button>
@@ -209,7 +209,7 @@ export default function AdminUsers() {
                         className="admin-btn admin-btn--ghost"
                         disabled={savingId === u.id}
                         onClick={() => changeRole(u.id, "user")}
-                        style={{ marginLeft: 8 }}
+                        style={{ marginLeft: 8, padding: '8px 16px', minWidth: '140px' }}
                       >
                         {savingId === u.id ? "Đang cập nhật..." : "Hạ xuống user"}
                       </button>
@@ -219,7 +219,7 @@ export default function AdminUsers() {
                     <button
                       type="button"
                       className="admin-btn admin-btn--ghost"
-                      style={{ marginLeft: 8 }}
+                      style={{ marginLeft: 8, padding: '8px 16px', minWidth: '120px' }}
                       onClick={() => loadUserDetail(u)}
                     >
                       Xem chi tiết
@@ -260,6 +260,26 @@ export default function AdminUsers() {
                     <p><b>Email:</b> {selectedUser.email}</p>
                     <p><b>Số điện thoại:</b> {selectedUser.phone_number || "—"}</p>
                     <p><b>Ngày tạo:</b> {new Date(selectedUser.created_at).toLocaleString("vi-VN")}</p>
+                    <p><b>Quyền:</b> {selectedUser.role}</p>
+
+                    <div style={{ marginTop: 10 }}>
+                      <b>Avatar:</b><br />
+                      <img
+                        src={getAvatar(selectedUser)}
+                        style={{ width: 120, height: 120, borderRadius: "50%", marginTop: 8 }}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* ADMIN */}
+                {selectedUser.role === "admin" && (
+                  <>
+                    <p><b>Họ tên:</b> {selectedUser.name}</p>
+                    <p><b>Email:</b> {selectedUser.email}</p>
+                    <p><b>Số điện thoại:</b> {selectedUser.phone_number || "—"}</p>
+                    <p><b>Ngày tạo:</b> {new Date(selectedUser.created_at).toLocaleString("vi-VN")}</p>
+                    <p><b>Quyền:</b> <span style={{fontWeight: 'bold', color: '#ff0000ff' }}>{selectedUser.role}</span></p>
 
                     <div style={{ marginTop: 10 }}>
                       <b>Avatar:</b><br />
@@ -277,8 +297,18 @@ export default function AdminUsers() {
                     <p><b>Họ tên:</b> {lessorData.full_name}</p>
                     <p><b>Email:</b> {lessorData.email}</p>
                     <p><b>Số điện thoại:</b> {lessorData.phone_number}</p>
-                    <p><b>Ngày sinh:</b> {lessorData.date_of_birth}</p>
+                    <p><b>Ngày tạo:</b> {new Date(selectedUser.created_at).toLocaleString("vi-VN")}</p>
+                    <p><b>Quyền:</b> {selectedUser.role}</p>                    
+                    <p><b>Ngày sinh:</b> {new Date(lessorData.date_of_birth).toLocaleDateString('vi-VN')}</p>
                     <p><b>Trạng thái:</b> {lessorData.status}</p>
+
+                    <div style={{ marginTop: 10 }}>
+                      <b>Avatar:</b><br />
+                      <img
+                        src={getAvatar(selectedUser)}
+                        style={{ width: 120, height: 120, borderRadius: "50%", marginTop: 8 }}
+                      />
+                    </div>
 
                     <div style={{ marginTop: 10, display: "flex", gap: 20 }}>
                       <div>
@@ -313,8 +343,23 @@ export default function AdminUsers() {
                   </>
                 )}
 
-                {!lessorData && selectedUser.role === "lessor" && (
-                  <p className="text-red-400">Không tìm thấy dữ liệu yêu cầu lessor.</p>
+                {/* LESSOR nhưng chưa có yêu cầu xác minh */}
+                {selectedUser.role === "lessor" && !lessorData && (
+                  <>
+                    <p><b>Họ tên:</b> {selectedUser.name}</p>
+                    <p><b>Email:</b> {selectedUser.email}</p>
+                    <p><b>Số điện thoại:</b> {selectedUser.phone_number || "—"}</p>
+                    <p><b>Ngày tạo:</b> {new Date(selectedUser.created_at).toLocaleString("vi-VN")}</p>
+                    <p><b>Trạng thái:</b> Chưa nộp xác minh CCCD / chưa có yêu cầu</p>
+
+                    <div style={{ marginTop: 10 }}>
+                      <b>Avatar:</b><br />
+                      <img
+                        src={getAvatar(selectedUser)}
+                        style={{ width: 120, height: 120, borderRadius: "50%", marginTop: 8 }}
+                      />
+                    </div>
+                  </>
                 )}
 
                 <button

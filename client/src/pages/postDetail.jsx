@@ -93,6 +93,8 @@ async function toggleWishlistAPI(postId, token) {
       window.dispatchEvent(new Event('wishlist:changed'))
       return
     }
+  
+
 
     // Đăng nhập, dùng API
     const ids = await getWishlistIdsFromAPI(token)
@@ -385,7 +387,7 @@ export default function PostDetail() {
     post?.user?.avatar ||
     post?.user?.avatar_path ||
     post?.user?.profile_photo_url ||
-    ''
+    '../src/assets/images/default-avatar.png'
 
   const hostPhone =
     post?.contact_phone || // ƯU TIÊN số điện thoại riêng của bài
@@ -643,38 +645,38 @@ export default function PostDetail() {
   // ===== LOAD REPLY TREE =====
   const [reviewTree, setReviewTree] = useState([]);
 
- // ===== LOAD REPLY TREE (FIXED) =====
-async function loadReviewTree() {
-  try {
-    const token = localStorage.getItem("access_token");
+  // ===== LOAD REPLY TREE (FIXED) =====
+  async function loadReviewTree() {
+    try {
+      const token = localStorage.getItem("access_token");
 
-    const res = await fetch(`${API_BASE_URL}/posts/${id}/review-tree`, {
-      headers: {
-        Accept: "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+      const res = await fetch(`${API_BASE_URL}/posts/${id}/review-tree`, {
+        headers: {
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
-    if (!res.ok) {
-      console.warn("loadReviewTree failed:", res.status);
+      if (!res.ok) {
+        console.warn("loadReviewTree failed:", res.status);
+        setReviewTree([]);
+        return;
+      }
+
+      const data = await res.json();
+      console.log("DEBUG review-tree RAW =", data);
+
+      let tree = [];
+      if (Array.isArray(data?.data)) tree = data.data;
+      else if (Array.isArray(data?.data?.reviews)) tree = data.data.reviews;
+      else if (Array.isArray(data?.reviews)) tree = data.reviews;
+
+      setReviewTree(tree);
+    } catch (err) {
+      console.error("loadReviewTree error", err);
       setReviewTree([]);
-      return;
     }
-
-    const data = await res.json();
-    console.log("DEBUG review-tree RAW =", data);
-
-    let tree = [];
-    if (Array.isArray(data?.data)) tree = data.data;
-    else if (Array.isArray(data?.data?.reviews)) tree = data.data.reviews;
-    else if (Array.isArray(data?.reviews)) tree = data.reviews;
-
-    setReviewTree(tree);
-  } catch (err) {
-    console.error("loadReviewTree error", err);
-    setReviewTree([]);
   }
-}
 
 
 
@@ -780,7 +782,7 @@ async function loadReviewTree() {
       body: JSON.stringify(payload),
     });
     await loadReviewTree();
-     await refreshPost();
+    await refreshPost();
   }
 
   // Xóa đánh giá
@@ -961,15 +963,16 @@ async function loadReviewTree() {
           )}
 
           {/* TIỆN ÍCH */}
-          {amenities.length > 0 && (
+     {amenities && amenities.length > 0 && (
             <article className="pd-card">
               <h2 className="pd-card__title">
                 Tiện ích trong phòng / căn hộ
               </h2>
               <div className="pd-tags">
-                {amenities.map(a => (
-                  <span key={a.id || a.name} className="pd-tag">
-                    {a.name}
+                {amenities.map((a, index) => (
+                  <span key={a.id || index} className="pd-tag">
+                    {/* Render an toàn cho cả Object và String */}
+                    {typeof a === 'object' ? a.name : a}
                   </span>
                 ))}
               </div>
@@ -977,44 +980,23 @@ async function loadReviewTree() {
           )}
 
           {/* MÔI TRƯỜNG XUNG QUANH */}
-          {envFeatures.length > 0 && (
+       {envFeatures && envFeatures.length > 0 && (
             <article className="pd-card">
               <h2 className="pd-card__title">Môi trường xung quanh</h2>
               <div className="pd-tags">
-                {envFeatures.map(e => (
-                  <span key={e.id || e.name} className="pd-tag">
-                    {e.name}
+                {envFeatures.map((e, index) => (
+                  <span key={e.id || index} className="pd-tag">
+                    {typeof e === 'object' ? e.name : e}
                   </span>
                 ))}
               </div>
             </article>
+          
           )}
 
-          {memberTargets.length > 0 && (
-            <article className="pd-card">
-              <h2 className="pd-card__title">Đối tượng phù hợp</h2>
-              <div className="pd-tags">
-                {memberTargets.map(m => (
-                  <span key={m.id || m.name} className="pd-tag">
-                    {m.name}
-                  </span>
-                ))}
-              </div>
-            </article>
-          )}
 
-          {policies.length > 0 && (
-            <article className="pd-card">
-              <h2 className="pd-card__title">Chính sách &amp; quy định</h2>
-              <div className="pd-tags">
-                {policies.map(p => (
-                  <span key={p.id || p.name} className="pd-tag">
-                    {p.name}
-                  </span>
-                ))}
-              </div>
-            </article>
-          )}
+
+
         </div>
 
         {/* CỘT PHẢI: LIÊN HỆ + LƯU Ý */}
@@ -1279,7 +1261,7 @@ async function loadReviewTree() {
             )}
 
             <div className="rv-tree-list">
-             {communityReviews.map(rv => (
+              {communityReviews.map(rv => (
                 <ReviewTree
                   key={rv.id}
                   postId={post.id}
@@ -1299,7 +1281,7 @@ async function loadReviewTree() {
             </div>
           </div>
         </article>
-      </section>  
+      </section>
 
 
 

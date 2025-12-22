@@ -143,7 +143,7 @@ export default function AdminReviews() {
               <th>Nội dung</th>
               <th>Trạng thái</th>
               <th>Thời gian</th>
-              <th>Hành động</th>
+              <th style={{ textAlign: 'center' }}>Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -172,46 +172,46 @@ export default function AdminReviews() {
                   {r.created_at &&
                     new Date(r.created_at).toLocaleString('vi-VN')}
                 </td>
-                <td>
+                <td style={{ whiteSpace: 'nowrap' }}>
                   {/* Nút Ẩn / Hiện */}
                   <button
                     onClick={() => handleToggleHidden(r.id)}
                     disabled={reloading}
                     style={{
-                      marginRight: 6,
-                      padding: '4px 10px',
-                      fontSize: 12,
+                      marginRight: 8,
+                      padding: '6px 14px',
+                      fontSize: 13,
                       borderRadius: 999,
                       border: '1px solid #e5e7eb',
                       backgroundColor: r.is_hidden ? '#22c55e' : '#f97316',
-                      color: '#0b1120',
-                      cursor: reloading ? 'default' : 'pointer',
+                      color: '#ffffff',
+                      cursor: reloading ? 'not-allowed' : 'pointer',
                       fontWeight: 500,
-                      boxShadow:
-                        '0 1px 2px rgba(15,23,42,0.35)',
+                      minWidth: '80px',
+                      boxShadow: '0 1px 2px rgba(15,23,42,0.35)',
                     }}
                   >
                     {r.is_hidden ? 'Hiện' : 'Ẩn'}
                   </button>
 
-                  {/* Nút Xoá */}
+                  {/* Nút Xóa */}
                   <button
                     onClick={() => handleDelete(r.id)}
                     disabled={reloading}
                     style={{
-                      padding: '4px 10px',
-                      fontSize: 12,
+                      padding: '6px 14px',
+                      fontSize: 13,
                       borderRadius: 999,
                       border: '1px solid #fecaca',
                       backgroundColor: '#b91c1c',
-                      color: '#fee2e2',
-                      cursor: reloading ? 'default' : 'pointer',
+                      color: '#ffffff',
+                      cursor: reloading ? 'not-allowed' : 'pointer',
                       fontWeight: 500,
-                      boxShadow:
-                        '0 1px 2px rgba(15,23,42,0.35)',
+                      minWidth: '80px',
+                      boxShadow: '0 1px 2px rgba(15,23,42,0.35)',
                     }}
                   >
-                    Xoá
+                    Xóa
                   </button>
                 </td>
               </tr>

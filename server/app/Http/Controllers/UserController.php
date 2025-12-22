@@ -343,6 +343,7 @@ public function requestLessor(Request $request)
         ]);
     }
 
+    // GET /api/admin/lessor-requests
     public function adminLessorRequests()
     {
         $admin = Auth::user();
@@ -355,7 +356,6 @@ public function requestLessor(Request $request)
         }
 
       $requests = LessorRequest::with('user')
-    ->where('status', 'pending')
     ->orderBy('created_at', 'desc')
     ->get();
 
@@ -388,6 +388,7 @@ public function requestLessor(Request $request)
                         'name' => $req->user->name,
                         'email' => $req->user->email,
                         'phone_number' => $req->user->phone_number,
+                        'avatar' => $req->user->avatar ?? null,    
                     ],
                 ];
             }),

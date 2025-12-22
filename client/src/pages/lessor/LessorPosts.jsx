@@ -151,7 +151,8 @@ export default function LessorPosts() {
               <tr key={p.id}>
                 <td>{p.id}</td>
                 <td>
-                  <Link to={`/post/${p.id}`} target="_blank" rel="noreferrer">
+                  <Link to={`/post/${p.id}`} target="_blank" rel="noreferrer"
+                  className="lessor-post-title" >
                     {p.title}
                   </Link>
                 </td>

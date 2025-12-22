@@ -78,6 +78,8 @@ Route::get('/environment-features', [EnvironmentFeatureController::class, 'index
 
 
 // ================== REVIEWS PUBLIC ==================
+// Public: get all reviews across the system
+Route::get('/reviews', [ReviewController::class, 'all']);
 Route::get('/posts/{postId}/reviews', [ReviewController::class, 'index']);
 Route::get('/posts/{postId}/review-tree', [ReviewController::class, 'getTree']);
 
@@ -155,6 +157,9 @@ Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
         Route::get('/reviews', [ReviewController::class, 'adminIndex']);
         Route::patch('/reviews/{id}/toggle', [ReviewController::class, 'adminToggleVisibility']);
         Route::delete('/reviews/{id}', [ReviewController::class, 'adminDestroy']);
+    
+        Route::get('/saved-posts', [SavedPostController::class, 'adminIndex']);
+        Route::delete('/saved-posts/{id}', [SavedPostController::class, 'adminDelete']);
     });
 
 

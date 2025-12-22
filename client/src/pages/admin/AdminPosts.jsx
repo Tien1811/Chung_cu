@@ -174,21 +174,22 @@ export default function AdminPosts() {
         <table className="admin-table">
           <thead>
             <tr>
-            
+              <th>ID</th>            
               <th>Tiêu đề</th>
               <th>Danh mục</th>
               <th>Giá (VNĐ/tháng)</th>
               <th>Trạng thái</th>
               <th>Ngày đăng</th>
-              <th style={{ width: 220 }}>Hành động</th>
+              <th style={{ width: 220, textAlign: 'center' }}>Hành động</th>
             </tr>
           </thead>
           <tbody>
             {items.map((p) => (
               <tr key={p.id}>
-           
-                <td >
-                  <Link to={`/post/${p.id}`} target="_blank" rel="noreferrer" style={{color:'white', fontSize:'14px'}} >
+                <td>{p.id}</td>
+                <td>
+                  <Link to={`/post/${p.id}`} target="_blank" rel="noreferrer"
+                  className="post-title-link">
                     {p.title}
                   </Link>
                 </td>
@@ -202,6 +203,10 @@ export default function AdminPosts() {
                     <button
                       type="button"
                       className="admin-btn admin-btn--sm"
+                      style={{
+                      background: p.status === 'published' ? '#ffc107' : '#007bff',
+                      color: p.status === 'published' ? '#000' : '#fff',
+                      }}
                       onClick={() =>
                         changeStatus(
                           p.id,
@@ -216,6 +221,10 @@ export default function AdminPosts() {
                     <button
                       type="button"
                       className="admin-btn admin-btn--sm"
+                      style={{
+                      background: '#ff8c00',
+                      color: '#fff',
+                      }}
                       onClick={() => navigate(`/admin/posts/${p.id}/edit`)}
                     >
                       Sửa
@@ -225,6 +234,10 @@ export default function AdminPosts() {
                     <button
                       type="button"
                       className="admin-btn admin-btn--sm admin-btn--danger"
+                      style={{
+                      background: '#dc3545',
+                      color: '#fff',
+                      }}
                       onClick={() => handleDelete(p.id)}
                     >
                       Xóa
