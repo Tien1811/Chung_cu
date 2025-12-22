@@ -1,13 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
- 
 import { API_URL } from '../config/api.js';
  
-import Login from '../pages/Login'
-
-const API_URL = "http://127.0.0.1:8000/api";
- 
-
 export default function ResetPassword() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -26,8 +20,6 @@ export default function ResetPassword() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // 🔥 Điều khiển login modal
-  const [showLogin, setShowLogin] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -89,12 +81,12 @@ export default function ResetPassword() {
       }
 
       // ✅ RESET OK
-      setSuccess('Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.')
+      setSuccess('Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại. chờ trong 3 giây')
 
-      // 🔥 Sau 1s → mở Login modal
+      // Sau 3s dẫn đến trang chủ
       setTimeout(() => {
-        setShowLogin(true)
-      }, 1000)
+        navigate('/', { replace: true })
+      }, 3000)
 
     } catch (err) {
       console.error(err)
@@ -107,7 +99,6 @@ export default function ResetPassword() {
   return (
     <>
       {/* ================= RESET PASSWORD PAGE ================= */}
-      {!showLogin && (
         <div className="auth-page">
           <div className="auth-card">
             <h1 className="auth-title">Đặt lại mật khẩu</h1>
@@ -181,19 +172,7 @@ export default function ResetPassword() {
             </div>
           </div>
         </div>
-      )}
 
-      {/* ================= LOGIN MODAL ================= */}
-      {showLogin && (
-        <Login
-          forceRedirectHome
-          onClose={() => {
-            // 🔥 DỨT ĐIỂM: THOÁT RESET PAGE
-            setShowLogin(false)
-            navigate('/', { replace: true })
-          }}
-        />
-      )}
     </>
   )
 }

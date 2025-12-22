@@ -22,7 +22,7 @@ function getAvatar(user) {
     user?.avatar_url ||
     user?.avatar ||
     user?.profile?.avatar_url ||
-    "/default-avatar.png"
+    "../src/assets/images/default-avatar.png"
   )
 }
 
@@ -537,9 +537,8 @@ export default function AdminDashboard() {
       </section>
 
       {/* ================= LESSOR REQUESTS ================= */}
-      {/* ================= LESSOR REQUESTS ================= */}
       <section className="admin-section">
-        <h2>Yêu cầu người cho thuê</h2>
+        <h2>Yêu cầu trở thành người cho thuê</h2>
 
         {lessorError && <p className="admin-error">{lessorError}</p>}
         {lessorLoading && <p className="admin-loading">Đang tải…</p>}
@@ -582,7 +581,7 @@ export default function AdminDashboard() {
 
                     <td>{req.phone_number}</td>
 
-                    <td>{req.date_of_birth}</td>
+                    <td>{new Date(req.date_of_birth).toLocaleDateString("vi-VN")}</td>
 
                     <td>
                       <span className={`admin-badge admin-badge--${req.status}`}>
@@ -594,7 +593,16 @@ export default function AdminDashboard() {
                     <td>
                       <div className="admin-td-actions">
                         <button
-                          className="admin-link"
+                        style={{
+                          padding: "6px 12px",
+                          border: "1px solid #007bff",
+                          background: "transparent",
+                          color: "#007bff",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
                           onClick={() => setSelectedRequest(req)}
                         >
                           Xem chi tiết
@@ -621,8 +629,10 @@ export default function AdminDashboard() {
             <p><b>Họ tên:</b> {selectedRequest.full_name}</p>
             <p><b>Email:</b> {selectedRequest.email}</p>
             <p><b>Số điện thoại:</b> {selectedRequest.phone_number}</p>
-            <p><b>Ngày sinh:</b> {selectedRequest.date_of_birth}</p>
-
+            <p><b>Ngày sinh:</b> {new Date(selectedRequest.date_of_birth).toLocaleDateString("vi-VN")}</p>
+            <p><b>Trạng thái:</b> {selectedRequest.status}</p>
+            <p><b>Ngày gửi:</b> {(selectedRequest.created_at)}</p>
+            
             <div className="cccd-preview-wrapper">
               <div>
                 <p>CCCD mặt trước</p>
@@ -636,6 +646,8 @@ export default function AdminDashboard() {
             </div>
 
             <div className="modal-actions">
+            {selectedRequest.status === "pending" && (
+              <>              
               <button
                 className="admin-btn admin-btn--primary"
                 onClick={() => handleLessorAction(selectedRequest.id, "approve")}
@@ -649,7 +661,9 @@ export default function AdminDashboard() {
               >
                 Từ chối
               </button>
-
+              </>
+            )}
+            
               <button
                 className="admin-btn admin-btn--danger"
                 onClick={() => handleLessorAction(selectedRequest.id, "delete")}

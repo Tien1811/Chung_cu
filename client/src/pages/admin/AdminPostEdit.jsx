@@ -14,6 +14,7 @@ export default function AdminPostEdit() {
     area: '',
     address: '',
     status: 'draft', // draft | published | hidden
+    content: '',
   })
 
   const [categories, setCategories] = useState([])
@@ -65,6 +66,7 @@ export default function AdminPostEdit() {
           area: p.area ?? '',
           address: p.address || '',
           status: p.status || 'draft',
+          content: p.content || '',
         })
 
         // ----- parse categories -----
@@ -133,6 +135,7 @@ export default function AdminPostEdit() {
           area: form.area !== '' ? Number(form.area) : null,
           address: form.address,
           status: form.status,
+          content: form.content,
         }),
       })
 
@@ -275,6 +278,23 @@ export default function AdminPostEdit() {
                     onChange={handleChange}
                     placeholder="Số nhà, tên đường..."
                   />
+                </label>
+              </div>
+            </div>
+
+            {/* Nội dung */}
+            <div className="admin-form__row">
+              <div className="admin-form__col">
+                <label className="admin-label">
+                  Nội dung mô tả bài đăng
+                  <textarea
+                    className="admin-input"
+                    style={{ minHeight: "140px" }}
+                    name="content"
+                    value={form.content}
+                    onChange={handleChange}
+                    placeholder="Mô tả chi tiết căn hộ..."
+                  ></textarea>
                 </label>
               </div>
             </div>

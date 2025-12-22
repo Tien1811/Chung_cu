@@ -149,6 +149,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reviews', [ReviewController::class, 'adminIndex']);
         Route::patch('/reviews/{id}/toggle', [ReviewController::class, 'adminToggleVisibility']);
         Route::delete('/reviews/{id}', [ReviewController::class, 'adminDestroy']);
+    
+        Route::get('/saved-posts', [SavedPostController::class, 'adminIndex']);
+        Route::delete('/saved-posts/{id}', [SavedPostController::class, 'adminDelete']);
     });
 
 

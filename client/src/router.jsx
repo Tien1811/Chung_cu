@@ -76,27 +76,27 @@ export const router = createBrowserRouter([
     ),
 
     children: [
-      { index: true, element: <Homes /> },
+      { index: '/', element: <Homes /> },
 
-      { path: 'phong-tro', element: <Rooms /> },
-      { path: 'nha-nguyen-can', element: <Houses /> },
-      { path: 'can-ho', element: <Apartments /> },
-      { path: 'ky-tuc-xa', element: <Dorms /> },
-      { path: 'reviews', element: <Reviews /> },
+      { path: '/phong-tro', element: <Rooms /> },
+      { path: '/nha-nguyen-can', element: <Houses /> },
+      { path: '/can-ho', element: <Apartments /> },
+      { path: '/ky-tuc-xa', element: <Dorms /> },
+      { path: '/reviews', element: <Reviews /> },
 
       // BLOG
-      { path: 'blog', element: <Blog /> },
-      { path: 'blog/:slug', element: (
+      { path: '/blog', element: <Blog /> },
+      { path: '/blog/:slug', element: (
         <ErrorBoundary>
           <BlogDetail />
         </ErrorBoundary>
       ) },
 
 
-      { path: 'wishlist', element: <Wishlist /> },
-      { path: 'forgot-password', element: <ForgotPassword /> },
-      { path: 'reset-password', element: <ResetPassword /> },
-      { path: 'post/:id', element: <PostDetail /> },
+      { path: '/wishlist', element: <Wishlist /> },
+      { path: '/forgot-password', element: <ForgotPassword /> },
+      { path: '/reset-password', element: <ResetPassword /> },
+      { path: '/post/:id', element: <PostDetail /> },
 
       // 404 UI (không phải error runtime)
       {

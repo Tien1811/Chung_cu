@@ -136,6 +136,7 @@ class BlogController extends Controller
         return new BlogResource($post->load(['tags', 'images']));
     }
 
+    // DELETE api/blogs/{id}
     public function destroy($id)
     {
         if ($r = $this->adminOnly()) return $r;

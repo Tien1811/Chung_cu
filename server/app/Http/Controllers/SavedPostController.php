@@ -117,4 +117,78 @@ class SavedPostController extends Controller
             'data' => $savedIds,
         ]);
     }
+
+    /** 
+     * ADMIN 
+    **/
+
+    // GET /api/admin/saved-posts
+    public function adminIndex(Request $request)
+    {
+        $admin = Auth::user();
+        if (!$admin || $admin->role !== 'admin') {
+            return response()->json(['status' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $q = $request->query('q');
+
+        $query = \DB::table('saved_posts')
+            ->join('users', 'saved_posts.user_id', '=', 'users.id')
+            ->join('posts', 'saved_posts.post_id', '=', 'posts.id')
+            ->select(
+                'saved_posts.id',
+                'saved_posts.created_at',
+                'users.id as user_id',
+                'users.name',
+                'users.email',
+                'posts.id as post_id',
+                'posts.title'
+            )
+            ->orderBy('saved_posts.id', 'DESC');
+
+        if ($q) {
+            $query->where('users.email', 'like', "%$q%")
+                ->orWhere('users.name', 'like', "%$q%")
+                ->orWhere('posts.title', 'like', "%$q%");
+        }
+
+        $data = $query->get()->map(fn($it) => [
+            'id' => $it->id,
+            'created_at' => $it->created_at,
+            'user' => [
+                'id' => $it->user_id,
+                'name' => $it->name,
+                'email' => $it->email,
+            ],
+            'post' => [
+                'id' => $it->post_id,
+                'title' => $it->title,
+            ]
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'data' => $data
+        ]);
+    }
+
+    // DELETE /api/admin/saved-posts/{id}
+    public function adminDelete($id)
+    {
+        $admin = Auth::user();
+        if (!$admin || $admin->role !== 'admin') {
+            return response()->json(['status' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $row = \DB::table('saved_posts')->where('id', $id)->first();
+
+        if (!$row) {
+            return response()->json(['status' => false, 'message' => 'Không tìm thấy'], 404);
+        }
+
+        \DB::table('saved_posts')->where('id', $id)->delete();
+
+        return response()->json(['status' => true, 'message' => 'Xoá thành công']);
+    }
+
 }

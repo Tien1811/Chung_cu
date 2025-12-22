@@ -13,6 +13,7 @@ export default function LessorPostEdit() {
     price: '',
     area: '',
     address: '',
+    content: '',
     status: 'draft',
   })
 
@@ -66,6 +67,7 @@ export default function LessorPostEdit() {
           price: p.price ?? '',
           area: p.area ?? '',
           address: p.address || '',
+          content: p.content || '',
           status: p.status || 'draft',
         })
 
@@ -292,6 +294,23 @@ export default function LessorPostEdit() {
                     name="address"
                     value={form.address}
                     onChange={handleChange}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* CONTENT (MÔ TẢ) */}
+            <div className="lessor-form__row">
+              <div className="lessor-form__col">
+                <label className="lessor-label">
+                  Nội dung mô tả
+                  <textarea
+                    className="lessor-input"
+                    style={{ minHeight: "140px" }}
+                    name="content"
+                    value={form.content}
+                    onChange={handleChange}
+                    placeholder="Mô tả chi tiết căn hộ, tiện ích, khu vực..."
                   />
                 </label>
               </div>

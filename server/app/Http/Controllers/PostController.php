@@ -436,11 +436,10 @@ class PostController extends Controller
             $post->update($request->only([
                 'category_id', 'title', 'price', 'area', 'address', 'content',
                 'contact_phone', 'status', 'max_people',
-<<<<<<< HEAD
-                'province_id', 'district_id', 'ward_id','status',
-=======
+
+
                 'province_id', 'district_id', 'ward_id', 'status',
->>>>>>> bedc56e (update)
+
             ]));
 
             // remove images
@@ -456,66 +455,10 @@ class PostController extends Controller
                     }
                     $img->delete();
                 }
-<<<<<<< HEAD
+
             }
 
-            // add new images
-            if ($request->hasFile('images')) {
-                $currentMaxSort = $post->images()->max('sort_order') ?? 0;
 
-                foreach ($request->file('images') as $index => $file) {
-                    $upload = $this->cloudinary->upload(
-                        $file->getRealPath(),
-                        'post_images'
-                    );
-
-                    $cloudFile = CloudinaryFile::create([
-                        'model_type' => Post::class,
-                        'model_id'   => $post->id,
-                        'public_id'  => $upload['public_id'],
-                        'url'        => $upload['secure_url'],
-                        'type'       => 'image',
-                    ]);
-
-                    $post->images()->create([
-                        'file_id'    => $cloudFile->id,
-                        'sort_order' => $currentMaxSort + $index + 1,
-                    ]);
-                }
-            }
-
-            // reload
-            $post->load([
-                'category:id,name',
-                'province:id,name',
-                'district:id,name',
-                'ward:id,name',
-                'thumbnail',
-                'images.file',
-            ]);
-
-            return response()->json([
-                'status'  => true,
-                'message' => 'Cập nhật bài thành công.',
-                'data'    => $this->preparePostForResponse($post),
-            ]);
-            } catch (ValidationException $e) {
-                return response()->json([
-                    'status' => false,
-                    'errors' => $e->errors(),
-                ], 422);
-            } catch (Exception $e) {
-                Log::error('Post update error: ' . $e->getMessage());
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Không thể cập nhật bài viết.',
-                ], 500);
-=======
->>>>>>> bedc56e (update)
-            }
-
-<<<<<<< HEAD
-=======
             // add new images
             if ($request->hasFile('images')) {
                 $currentMaxSort = $post->images()->max('sort_order') ?? 0;
@@ -570,7 +513,7 @@ class PostController extends Controller
         }
     }
 
->>>>>>> bedc56e (update)
+
 
     // =========================
     // DELETE api/posts/{id}
@@ -678,8 +621,4 @@ class PostController extends Controller
             'data' => $post
         ]);
     }
-<<<<<<< HEAD
-
-=======
->>>>>>> bedc56e (update)
 }
