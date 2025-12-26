@@ -461,7 +461,6 @@ public function requestLessor(Request $request)
             'type' => 'lessor_approved',
             'content' => 'Yêu cầu đăng ký làm chủ trọ của bạn đã được chấp nhận.',
             'is_read' => false,
-            'data' => ['lessor_request_id' => $lessorRequest->id],
         ]);
 
         return response()->json([
@@ -510,7 +509,6 @@ public function requestLessor(Request $request)
             'type' => 'lessor_rejected',
             'content' => 'Yêu cầu đăng ký làm chủ trọ của bạn đã bị từ chối. Lý do: ' . $lessorRequest->rejection_reason,
             'is_read' => false,
-            'data' => ['lessor_request_id' => $lessorRequest->id],
         ]);
 
         return response()->json([
@@ -545,13 +543,30 @@ public function requestLessor(Request $request)
             ], 404);
         }
 
+        // --- BỔ SUNG: XÓA ẢNH TRÊN CLOUDINARY ---
+        try {
+            // 1. Lấy Public ID từ URL
+            $frontPublicId = $this->getPublicIdFromUrl($lessorRequest->cccd_front_url);
+            $backPublicId  = $this->getPublicIdFromUrl($lessorRequest->cccd_back_url);
+
+            // 2. Gọi lệnh xóa nếu lấy được ID
+            if ($frontPublicId) {
+                $this->cloudinary->delete($frontPublicId);
+            }
+            if ($backPublicId) {
+                $this->cloudinary->delete($backPublicId);
+            }
+        } catch (\Exception $e) {
+            // Chỉ log lỗi xóa ảnh, không chặn việc xóa record trong DB
+            \Illuminate\Support\Facades\Log::error('Lỗi xóa ảnh CCCD trên Cloudinary: ' . $e->getMessage());
+        }
+
         // optionally notify the user that their request was removed
         Notification::create([
             'user_id' => $lessorRequest->user_id,
             'type' => 'lessor_deleted',
             'content' => 'Yêu cầu đăng ký làm chủ trọ của bạn đã bị xoá bởi quản trị viên.',
             'is_read' => false,
-            'data' => ['lessor_request_id' => $lessorRequest->id],
         ]);
 
         $lessorRequest->delete();
@@ -561,5 +576,17 @@ public function requestLessor(Request $request)
             'message' => 'Yêu cầu đã được xoá.',
             'data' => ['lessor_request_id' => $id],
         ]);
+    }
+    private function getPublicIdFromUrl($url)
+    {
+        if (!$url) return null;
+
+        // Dùng Regex để lấy phần sau /upload/ (bỏ qua version v123..) và trước dấu chấm đuôi file
+        // Pattern này tìm chuỗi sau "/upload/" hoặc "/upload/v<số>/"
+        if (preg_match('/\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/', $url, $matches)) {
+            return $matches[1]; 
+        }
+
+        return null;
     }
 }

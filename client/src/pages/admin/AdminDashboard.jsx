@@ -297,81 +297,94 @@ const loadLessorRequests = async () => {
 
   // ================== LESSOR REQUEST ACTION ==================
   const handleLessorAction = async (id, action) => {
-    // clear previous action error and remember this attempt so user can retry
-    setActionError("")
-    setLastActionAttempt({ id, action })
+      // clear previous action error and remember this attempt so user can retry
+      setActionError("")
+      setLastActionAttempt({ id, action })
 
-    // construct url and method properly
-    let url = `${API_BASE_URL}/admin/lessor-requests/${id}/${action}`;
-    let method = "POST";
-    if (action === "delete") {
-      // delete endpoint is DELETE /admin/lessor-requests/{id}
-      url = `${API_BASE_URL}/admin/lessor-requests/${id}`
-      method = "DELETE";
-    }
+      // construct url and method properly
+      let url = `${API_BASE_URL}/admin/lessor-requests/${id}/${action}`;
+      let method = "POST";
+      
+      // Config mặt định cho fetch
+      let options = {
+          headers: { 
+              "Content-Type": "application/json", // <--- QUAN TRỌNG: Thêm dòng này
+              Authorization: `Bearer ${token}` 
+          }
+      };
 
-    if (!confirm("Chắc chắn?")) return;
-
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const data = await safeJson(res);
-      if (!res.ok) {
-        const errMsg = extractApiError(data) || data?.message || "Lỗi không xác định"
-        throw new Error(errMsg)
+      if (action === "delete") {
+        // delete endpoint is DELETE /admin/lessor-requests/{id}
+        url = `${API_BASE_URL}/admin/lessor-requests/${id}`
+        method = "DELETE";
       }
 
-      setLessorRequests(prev => prev.filter(r => r.id !== id));
-      setSelectedRequest(null);
+      options.method = method;
 
-      // refresh from server to ensure global consistency
-     setLessorRequests(prev => prev.filter(r => r.id !== id))
+      // Nếu là POST (approve), gửi thêm body rỗng để backend nhận diện đúng request
+      if (method === "POST") {
+          options.body = JSON.stringify({});
+      }
 
+      if (!confirm("Chắc chắn?")) return;
 
-      // non-blocking success feedback
-      setActionMessage(data?.message || 'Thao tác thành công')
-      setTimeout(() => setActionMessage(''), 3500)
+      try {
+        const res = await fetch(url, options); // Sử dụng options đã config ở trên
 
-    } catch (err) {
-      console.error('Lessor action error', err)
-
-      const msg = String(err?.message || err)
-      const isNetwork = msg.includes('Failed to fetch') || err instanceof TypeError
-      const userMessage = isNetwork
-        ? `Không thể kết nối tới API (${API_BASE_URL}). Kiểm tra backend đang chạy và cấu hình CORS.`
-        : (msg || 'Có lỗi khi xử lý yêu cầu.')
-
-      // surface the error inline in the modal and allow retry
-      setActionError(userMessage)
-
-      // Only try to refresh list if it's not a network error
-      if (!isNetwork) {
+        // Xử lý text thô trước để debug lỗi HTML (500/404)
+        const text = await res.text();
+        let data = null;
         try {
-          const res2 = await fetch(`${API_BASE_URL}/admin/lessor-requests`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-          const d2 = await safeJson(res2)
-          const fresh = res2.ok ? (d2?.data || d2 || []) : []
-          setLessorRequests(fresh)
-          const exists = fresh.some(r => r.id === id)
-          if (!exists) {
-            // non-blocking notice to user
-            setActionMessage('Hành động có vẻ đã thực hiện thành công nhưng server trả lỗi. Danh sách đã được làm mới.')
-            setTimeout(() => setActionMessage(''), 3500)
-            setSelectedRequest(null)
-            setActionError("")
-            return
-          }
+            data = JSON.parse(text);
         } catch (e) {
-          console.error('Refresh lessor requests failed', e)
+            // Nếu không parse được JSON, ném lỗi kèm nội dung HTML/Text để debug
+            console.error("Non-JSON response:", text);
+            throw new Error(`Server trả về lỗi không phải JSON (Status: ${res.status})`);
+        }
+
+        if (!res.ok) {
+          const errMsg = extractApiError(data) || data?.message || "Lỗi không xác định từ Server";
+          throw new Error(errMsg);
+        }
+
+        setLessorRequests(prev => prev.filter(r => r.id !== id));
+        setSelectedRequest(null);
+
+        // refresh from server to ensure global consistency
+        // setLessorRequests(prev => prev.filter(r => r.id !== id)) // Dòng này dư thừa, đã filter ở trên
+
+        // non-blocking success feedback
+        setActionMessage(data?.message || 'Thao tác thành công');
+        setTimeout(() => setActionMessage(''), 3500);
+
+      } catch (err) {
+        console.error('Lessor action error', err);
+
+        const msg = String(err?.message || err);
+        const isNetwork = msg.includes('Failed to fetch') || err instanceof TypeError;
+        
+        const userMessage = isNetwork
+          ? `Không thể kết nối tới API (${API_BASE_URL}). Kiểm tra backend đang chạy và cấu hình CORS.`
+          : msg;
+
+        // Hiển thị lỗi ra UI
+        setActionError(userMessage);
+
+        // Logic refresh list giữ nguyên...
+        if (!isNetwork) {
+          try {
+            const res2 = await fetch(`${API_BASE_URL}/admin/lessor-requests`, {
+              headers: { Authorization: `Bearer ${token}` }
+            })
+            const d2 = await safeJson(res2)
+            const fresh = res2.ok ? (d2?.data || d2 || []) : []
+            setLessorRequests(fresh)
+          } catch (e) {
+            console.error('Refresh lessor requests failed', e)
+          }
         }
       }
-
-    }
-  };
+    };
 
   const submitReject = async () => {
     if (!selectedRequest) return
